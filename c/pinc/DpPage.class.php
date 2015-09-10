@@ -10,7 +10,6 @@ if(!isset($relPath))
     $relPath = "./";
 
 require_once $relPath . "DpProject.class.php";
-require_once $relPath . "DpFile.class.php";
 require_once $relPath . "rounds.php";
 require_once $relPath . "DpVersion.class.php";
 
@@ -792,9 +791,11 @@ class DpPage
 //
 //		$args = array(&$text, &$projectid, &$pagename, &$phase, &$task, &$username, &$projectid, &$pagename );
 //        $ret = $dpdb->SqlExecutePS($sql, $args);
-	    $this->Project()->MaybeAdvanceRound();
-        $this->_refresh_row();
-        
+//	    if($this->Project()->IsRoundCompleted()) {
+//		    $this->Project()->MaybeAdvanceRound();
+//		    $this->_refresh_row();
+//	    }
+
         $this->LogSaveAsDone();
         //
         // Don't advance here
@@ -1486,8 +1487,6 @@ The Administration"));
 
 class DpProtoPage extends DpPage
 {
-    /** @var  DpFile $_extimgfile */
-    /** @var  DpFile $_exttextfile */
     private $_extimgfilepath;
     private $_exttextfilepath;
 //    private $_extimgfile;
@@ -1528,7 +1527,6 @@ class DpProtoPage extends DpPage
     }
 
     public function DisposeExternalTextFile() {
-        /** @var DpFile $f */
         if( $this->IsExternalTextFile()) {
             unlink($this->ExternalTextFilePath());
         }
