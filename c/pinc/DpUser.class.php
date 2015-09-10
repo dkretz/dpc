@@ -667,7 +667,7 @@ class DpUser
                 SELECT COUNT(1) FROM page_versions
                     WHERE username = '$username'
                     AND state = 'C'
-                    AND event_time >= UNIX_TIMESTAMP(CURRENT_DATE())
+                    AND version_time >= UNIX_TIMESTAMP(CURRENT_DATE())
             ) a");
     }
 
