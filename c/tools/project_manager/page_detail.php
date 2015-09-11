@@ -116,6 +116,10 @@ function echo_pagetable($project, $is_my_pages, $username) {
         }
     }
 
+	if($project->IsInRounds()) {
+		$tbl->AddCaption("^");
+		$tbl->AddColumn("^Edit", "pagename", "eedit");
+	}
     $tbl->SetRows($tblrows);
     $tbl->EchoTableNumbered();
 }
@@ -139,11 +143,13 @@ function page_table_rows($project, $is_my_pages, $username) {
 
 	$sql = "
 		SELECT
+			p.username pm,
 			pg.projectid,
 			pg.pagename,
 			pg.imagefile,
 			plv.state versionstate,
 			plv.phase pagephase,
+			plv.username lastuser,
 		    phv.phase,
 			phv.version,
 			pv.username,
@@ -153,6 +159,8 @@ function page_table_rows($project, $is_my_pages, $username) {
 			COUNT(pvu.id) is_user_page
 
 		FROM pages pg
+
+		JOIN projects p ON pg.projectid = p.projectid
 
 		LEFT JOIN page_last_versions plv
 		ON pg.projectid = plv.projectid
@@ -203,17 +211,21 @@ function page_table_rows($project, $is_my_pages, $username) {
 		/**  @var $pagename String */
 		/**  @var $imagefile String */
 		/**  @var $phase String */
+		/**  @var $lastuser String */
 		/**  @var $version Int */
 		/**  @var $version_time String */
 		/**  @var $crc32  String*/
 		/**  @var $textlen  String*/
 		/**  @var $versionstate  String*/
 		/**  @var $pagephase  String*/
+		/**  @var $pm  String*/
+		$a[$pagename]["pm"]                      = $pm;
 		$a[$pagename]["projectid"]               = $projectid;
 		$a[$pagename]["pagename"]                = $pagename;
 		$a[$pagename]["imagefile"]               = $imagefile;
 		$a[$pagename]["versionstate"]            = $versionstate;
 		$a[$pagename]["pagephase"]               = $pagephase;
+		$a[$pagename]["lastuser"]               = $lastuser;
 		$a[$pagename][$phase]["phase"]           = $phase;
 		$a[$pagename][$phase]["version"]         = $version;
 		$a[$pagename][$phase]["version_time"]    = $version_time;
@@ -234,6 +246,19 @@ function imagelink($pagename, $pagerow) {
     $projectid  = $pagerow['projectid'];
 
     return link_to_view_image($projectid, $pagename, $pagename);
+}
+
+function eedit($pagename, $pagerow) {
+	global $User;
+	$projectid = $pagerow['projectid'];
+	//    $phase = $row["phase"];
+	//    $usrname = $row[rounduserfield($phase)];
+	$proofer = $pagerow['lastuser'];
+	if(lower($proofer) == lower($User->Username())
+	   || lower($pagerow['pm']) == lower($User->Username()) || $User->IsSiteManager()) {
+		return link_to_proof_page($projectid, $pagename, "Edit", true);
+	}
+	return "";
 }
 
 function ephasetime($phase) {
