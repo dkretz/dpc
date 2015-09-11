@@ -2,34 +2,44 @@
 ini_set("display_errors", true);
 error_reporting(E_ALL);
 
-$relPath="../pinc/";
+$relPath="./../pinc/";
 require_once $relPath . "dpinit.php";
-require_once "./project_manager/DifferenceEngineWrapper.php";
+$diffPath = '../../Lib/php-text-difference/src/Diff/";Diff.php' ;
+require_once '../../Lib/php-text-difference/src/Diff/Diff.php' ;
+require_once '../../Lib/php-text-difference/src/Diff/SequenceMatcher.php' ;
+require_once '../../Lib/php-text-difference/src/Diff/Renderer/AbstractRenderer.php' ;
+require_once '../../Lib/php-text-difference/src/Diff/Renderer/Html/ArrayRenderer.php' ;
+require_once '../../Lib/php-text-difference/src/Diff/Renderer/Html/SideBySide.php' ;
 
-/** @var $User DpThisUser */
 $User->IsLoggedIn()
-    or RedirectToLogin();
+or RedirectToLogin();
 
 $projectid       = ArgProjectId();
-$roundid         = Arg("roundid");
+$phase           = Arg("phase");
+$prevphase       = $Context->PhaseBefore($phase);
 
 if(! $projectid)
     die(_("Project id not provided."));
-if(! $roundid)
-    die(_("Round id not provided."));
+if(! $phase)
+    die(_("Phase not provided."));
 
 $project         = new DpProject($projectid);
-$nextroundid     = RoundIdAfter($roundid);
 
+$pgnames         = $project->PageNames();
+
+$text0 = $text1 = "";
+foreach($pgnames as $pgname) {
+	$pg = new DpPage($projectid, $pgname);
+	$text0 .= $pg->PhasePreviousText($phase);
+	$text1 .= $pg->PhaseText($phase);
+}
 
 $project_title   = $project->Title();
 
-$label           = $roundid;
+$label           = $phase;
 
-$title      = "Project Diff — $project_title ($roundid - $nextroundid)";
+$title      = "Project Diff — $project_title ($prevphase to $phase)";
 $projlink   = link_to_project($projectid, "Go to project page");
-
-$diffEngine = new DifferenceEngineWrapper();
 
 echo "<!DOCTYPE HTML>
 <html>
@@ -37,6 +47,7 @@ echo "<!DOCTYPE HTML>
 <meta charset='utf-8'>
 <title>$title</title>
 <link type='text/css' rel='stylesheet' href='{$css_url}/dp.css'>
+<link rel='stylesheet' href='/Lib/php-text-difference/example/styles.css' type='text/css' charset='utf-8'/>
 <script type='text/javascript' src='dpdiff.js'></script>
 </head>
 
@@ -53,9 +64,11 @@ echo "<!DOCTYPE HTML>
     <p>{$projlink}</p>
     </div>\n";
 
-    $a = $project->RoundText($roundid);
-    $b = $project->RoundText($nextroundid);
-    $diffEngine->showDiff($a, $b, $roundid, $nextroundid);
+	$lines0   = text_lines($text0);
+	$lines1   = text_lines($text1);
+	$diff     = new \Adaptive\Diff\Diff( $lines0, $lines1 );
+	$renderer = new \Adaptive\Diff\Renderer\Html\SideBySide();
+	echo $diff->render( $renderer );
 echo "
 </div>
 </body></html>\n";
