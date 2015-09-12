@@ -1,8 +1,8 @@
 <?PHP
 
 $db_server   = 'localhost';
-$db_user     = 'usrDPCanada';
-$db_password = 'CanadaWin10';
-$db_name     = 'dbDPCanada';
+$db_user     = 'username';
+$db_password = 'password';
+$db_name     = 'database';
 
-$site_managers = array("dkretz", "ionav", "simple simon", "De2164");
+$site_managers = array("a", "b", "c", "d");
