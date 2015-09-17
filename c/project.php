@@ -105,9 +105,9 @@ switch($project->Phase()) {
 $title_for_theme = $project->NameOfWork() . _(' project page');
 
 // touch modifieddate whenever PPer views this page
-if($project->UserIsPPer() && $project->Phase() == "PP") {
-    $project->SetModifiedDate();
-}
+//if($project->UserIsPPer() && $project->Phase() == "PP") {
+//    $project->SetModifiedDate();
+//}
 
 // confusing call to prepare top and bottom status boxes
 list($top_status, $bottom_status) = top_bottom_status($project);
