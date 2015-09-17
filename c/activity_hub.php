@@ -15,7 +15,7 @@ $relPath = "./pinc/";
 include_once($relPath.'dpinit.php');
 //include_once($relPath.'stages.inc');
 include_once($relPath.'site_news.inc');
-include_once($relPath.'mentorbanner.inc');
+//include_once($relPath.'mentorbanner.inc');
 include_once($relPath.'RoundsInfo.php');
 
 $pagename = "activityhub";
