@@ -11,7 +11,6 @@ require_once $relPath."theme.inc";
 $User->IsSiteManager()
     or die("Site managers only.");
 
-HandleArgs();
 
 $sql = "SELECT  ht.code, r.code,
                 r.description, 
