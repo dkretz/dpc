@@ -46,6 +46,11 @@ $projectid              = ArgProjectId();
 
 // directory to browse from
 $chk_text               = ArgArray("chk_text");      // selected files
+
+if(dkretz()) {
+	dump(count($chk_text));
+	die();
+}
 $chk_other              = ArgArray("chk_other");
 $chk_delete             = ArgArray("chk_delete");
 
@@ -80,6 +85,9 @@ if($readme != "" && $project->CPComments() == "") {
 //  Submit processing
 // -----------------------------------------------------------------
 
+// gather protopages as union of database and files
+$protopages = gather_page_set($project, $truepath);
+
 
 // process requested file deletions from project directory
 if ( count( $chk_delete ) > 0 ) {
@@ -89,7 +97,9 @@ if ( count( $chk_delete ) > 0 ) {
 // if requested to include or delete extra files, copy them over or delete them.
 if ( count( $chk_other ) > 0 ) {
 	// permit_path($project->ProjectPath());
-	foreach ( array_keys( $chk_other ) as $otherpath ) {
+	foreach ( array_keys( $chk_other ) as $otherkey ) {
+		$proto = $protopages[$otherkey];
+		$otherpath = $proto['external_image'];
 		$otherfile = basename($otherpath);
 		if ( ! file_exists( $otherpath ) ) {
 			assert(false);
@@ -115,9 +125,6 @@ if ( count( $chk_other ) > 0 ) {
 		}
 	}
 }
-
-// gather protopages as union of database and files
-$protopages = gather_page_set($project, $truepath);
 
 
 // load pages requested
@@ -281,9 +288,9 @@ $tblpages->SetRows( $pagerows );
 // build other uploaded files display
 $tblother = new DpTable( "tblother", "dptable" );
 $tblother->AddColumn( "<Name", "name", null, "hidden" );
-$tblother->AddColumn( "<Image", null, "eMaybeImage" );
-$tblother->AddColumn( "<Text", null, "eMaybeText" );
-$tblother->AddColumn( "^All", "name", "othercheck" );
+$tblother->AddColumn( "<File name", null, "eOther" );
+$tblother->AddColumn( "<In<br>project", null, "eInProject");
+$tblother->AddColumn( chkall2(), "name", "othercheck" );
 $tblother->SetRows( $otherrows );
 
 
@@ -387,25 +394,52 @@ echo "
 function eFileName($row) {
 
 }
-function eMaybeImage($row) {
+function eInProject( $row) {
+	global $project;
 	if ( isset( $row["external_image"] ) ) {
-		return basename( $row["external_image"] );
+		$fname = basename($row["external_image"]);
+		$fpath = build_path($project->ProjectPath(), $fname);
 	}
-	else if( isset( $row["external_text"] ) ) {
-		return basename( $row["external_text"] );
+	else if ( isset( $row["external_text"] ) ) {
+		$fname = basename($row["external_text"]);
+		$fpath = build_path($project->ProjectPath(), $fname);
 	}
-	else if( isset( $row["external_other"])) {
-		return basename( $row["oexternal_ther"] );
+	else if ( isset( $row["external_other"])) {
+		$fname = basename($row["external_other"]);
+		$fpath = build_path($project->ProjectPath(), $fname);
 	}
 	else {
 		return "";
 	}
+	return file_exists($fpath) ? "Yes" : "No";
 }
 
-function eMaybeText($row) {
-	return isset($row["external_text"])
-		? $row['name']
-		: "";
+//function eMaybeImage($row) {
+//	if ( isset( $row["external_image"] ) ) {
+//			return basename( $row["external_image"] );
+//	}
+//	else if( isset( $row["external_text"] ) ) {
+//		return basename( $row["external_text"] );
+//	}
+//	else if( isset( $row["external_other"])) {
+//		return basename( $row["external_other"] );
+//	}
+//	else {
+//		return "";
+//	}
+//}
+
+function eOther($row) {
+	if(isset($row["external_image"])) {
+		return basename($row['external_image']);
+	}
+	if(isset($row["external_text"])) {
+		return basename($row['external_text']);
+	}
+	if (isset($row["external_other"])) {
+		return basename($row['external_other']);
+	}
+	return "";
 }
 
 function eInDb($row) {
@@ -504,12 +538,12 @@ function textcheck($page) {
 }
 
 function othercheck($name) {
-	global $protopages;
+//	global $protopages;
 //	$name = $row['name'];
 	$key  = "pg_" . $name;
-	$proto = $protopages[ $key ];
-	$frompath = isset($proto['external_image']) ? $proto['external_image'] : $proto['external_text'];
-	return "<input type='checkbox' name='chk_other[$frompath]'>";
+//	$proto = $protopages[ $key ];
+//	$frompath = isset($proto['external_image']) ? $proto['external_image'] : $proto['external_text'];
+	return "<input type='checkbox' name='chk_other[$key]'>";
 }
 
 function exttxtlen($page) {
