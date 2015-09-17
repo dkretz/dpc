@@ -2,7 +2,6 @@
 $relPath="./../../pinc/";
 include_once($relPath.'dpinit.php');
 include_once($relPath.'theme.inc');
-//include_once($relPath.'user_is.inc');
 include_once($relPath.'site_news.inc');
 
 // require_login();
