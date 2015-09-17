@@ -47,9 +47,10 @@ class DpUser
 
 	    // if not in our database
         if( ! $is_dp_user ) {
+	        LogMsg("INFO: creating dpc user $username");
 	        // assert it's in the phpbb database
 //	        assert(! $dpdb->SqlExists("
-//						SELECT COUNT(1) FROM $bb_users_table
+//						SELECT 1 FROM $bb_users_table
 //						WHERE username_clean = LOWER('$username')"));
 //
 	        // query for what we need from the phpbb database
@@ -83,10 +84,12 @@ class DpUser
 	        $args = array(&$username, &$lang);
 //	        say(html_comment($sql));
 	        if($dpdb->SqlExecutePS($sql, $args) != 1) {
+		        LogMsg("Create DP User Failed");
 		        die( "Create DP User Failed." );
 	        }
 //            $this->create_dp_user($username);
             assert(DpContext::UserExists($this->Username()));
+	        LogMsg("Success - create DP user $username");
         }
 
 //	    $this->_forum_user = new ForumUser($username);
@@ -117,9 +120,8 @@ class DpUser
 	    $this->_row = $dpdb->SqlOneRow($sql);
 
         if( ! $this->Exists()) {
-            StackDump();
-            dump($username);
-            die();
+	        LogMsg("FetchUser failed for $username");
+            die("FetchUser failed for $username");
         }
 
     }
