@@ -20,9 +20,11 @@ error_reporting(E_ALL);
 $relPath = "./pinc/";
 require_once $relPath."dpinit.php";
 
-//      /var/sftp
+$User->IsLoggedIn()
+	or RedirectToLogin();
+
+
 global $sftp_path;
-//      /var/sftp/dpscans
 global $dpscans_path;
 
 //      /var/sftp/dpscans/dkretz
@@ -65,8 +67,6 @@ $username               = $User->Username();
 
 // -------------------------------------------------------
 
-$User->IsLoggedIn()
-	or RedirectToLogin();
 
 $project = new DpProject( $projectid );
 
