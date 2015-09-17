@@ -791,20 +791,6 @@ function link_to_project_trace($projectid = "", $prompt = "trace") {
     return link_to_url(url_for_project_trace($projectid), $prompt);
 }
 
-function upload_widget_iframe($projectid, $pagename = "") {
-    return "
-        <iframe id='uploadframe' name='uploadframe' style='display: none;'
-        src='".url_for_upload_widget($projectid, $pagename)."'>
-        </iframe>\n";
-}
-
-function url_for_upload_widget($projectid = "", $pagename = "") {
-    global $code_url;
-    return "$code_url/upwidget.php"
-        ."?projectid=$projectid"
-        ."&amp;pagename=$pagename";
-}
-
 // -- fadedpage
 
 function url_for_fadedpage_catalog( $postednum ) {
@@ -1009,20 +995,6 @@ function link_to_hyphenated_words($projectid, $prompt) {
 function url_for_hyphenated_words($projectid) {
     return url_for_word_context($projectid, "hyphenated");
 }
-
-
-// -- diff suggestions
-
-function link_to_diff_suggestions($projectid, $prompt) {
-    return link_to_url(
-        url_for_diff_suggestions($projectid), $prompt);
-}
-
-function url_for_diff_suggestions($projectid) {
-    global $wc_url;
-    return "$wc_url/scannos.php?projectid=$projectid";
-}
-
 
 // -- good words
 
