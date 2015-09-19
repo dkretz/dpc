@@ -18,6 +18,9 @@ include_once($relPath.'site_news.inc');
 //include_once($relPath.'mentorbanner.inc');
 include_once($relPath.'RoundsInfo.php');
 
+$User->IsLoggedIn()
+	or RedirectToLogin();
+
 $pagename = "activityhub";
 $link_projectid = Arg("link_projectid");
 
@@ -340,9 +343,6 @@ function summarize_projects( $phase) {
 
 function show_admin_links() {
     global $User;
-	if(! $User->IsLoggedIn()) {
-		return;
-	}
     echo "
     <div id='admin_links' class='center w50 overflow'>
     <h5>Admin Links</h5>
