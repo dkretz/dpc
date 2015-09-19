@@ -13,11 +13,9 @@ error_reporting(E_ALL);
 
 $relPath="./../pinc/";
 include_once($relPath.'dpinit.php');
-include_once($relPath.'gettext_setup.inc');
-include_once($relPath.'theme.inc');
-include_once($relPath.'site_news.inc');
-require_once $relPath . "DpTable.class.php";
-require_once $relPath . "DpProject.class.php";
+
+$User->IsLoggedIn()
+	or RedirectToLogin();
 
 $pretpool   = ArgArray("return_to_pool");
 $pretpp     = ArgArray("return_to_pper");
