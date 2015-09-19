@@ -2,16 +2,16 @@
 $relPath="./../../pinc/";
 include_once $relPath.'dpinit.php';
 
-if(! $User->IsLoggedIn()) {
-    die("Please log in.");
-}
+$User->IsLoggedIn()
+	or RedirectToLogin();
+
 
 $projectid  = Arg('projectid');
 $setclear   = Arg('setclear');
 $username   = $User->Username();
 
 if($setclear == "set" && ! $dpdb->SqlExists("
-            SELECT 1 FROM notify 
+            SELECT 1 FROM notify
             WHERE projectid = '$projectid' AND username = '$username'")) {
     $dpdb->SqlExecute("
             INSERT INTO notify (projectid, username)
@@ -27,7 +27,5 @@ $projectstate = $dpdb->SqlOneValue("
             SELECT state FROM projects
             WHERE projectid = '$projectid'");
 
-divert( "$code_url/project.php"
-                    ."?id=$projectid"
-                    ."&amp;expected_state=$proofstate" );
+divert(url_for_project($projectid));
 ?>
