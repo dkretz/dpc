@@ -4,7 +4,8 @@ error_reporting(E_ALL);
 $relPath = "./pinc/";
 require_once $relPath."dpinit.php";
 
-$Context = new DpContext();
+$User->IsLoggedIn()
+	or RedirectToLogin();
 
 $qtitle         = Arg("qtitle");
 $qauthor        = Arg("qauthor");
