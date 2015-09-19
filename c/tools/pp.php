@@ -5,7 +5,9 @@ error_reporting(E_ALL);
 
 $relPath="./../pinc/";
 include_once($relPath . 'dpinit.php');
-//include_once $relPath . "site_news.inc";
+
+$User->IsLoggedIn()
+	or RedirectToLogin();
 
 $pcheckout      = ArgArray("checkout");     // checkout to PP
 
