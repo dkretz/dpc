@@ -9,6 +9,9 @@ $pupload        = ArgArray("upload");       // complete with upload
 $psetcomplete   = ArgArray("setcomplete");  // complete without upload
 $upload_action  = Arg("upload_action");
 
+$User->IsLoggedIn()
+	or RedirectToLogin();
+
 $error_message = "";
 
 if(count($pcheckout) > 0) {
