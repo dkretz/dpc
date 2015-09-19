@@ -26,6 +26,7 @@ require_once $relPath.'DpVersion.class.php';
 
 require_once $relPath.'DpTable.class.php';
 include_once($relPath.'gettext_setup.inc');
+include_once($relPath.'site_news.inc');
 //include_once($relPath.'RoundsInfo.php');
 
 //require_once $relPath . "udb_user.php";
@@ -42,7 +43,7 @@ $p = Arg('userPW');
 $User = new DpThisUser($u, $p);
 
 $Context = new DpContext();
-$Log     = new DpLog($site_log_path);
+$Log     = new DpLog($site_log_path, true);
 
 $basic_header = "
 <!DOCTYPE HTML>
