@@ -199,7 +199,9 @@ if($level > 2) {
 
 	offer_post_downloads( $project, $export_roundid , $level);
 
-	show_page_summary( $project );
+	if($project->IsInRounds()) {
+		show_page_summary( $project );
+	}
 
 
 }
@@ -354,12 +356,6 @@ function project_info_table($project, $level) {
     $available_for_SR = ( $project->SmoothreadDeadline() > time() );
 
 	$right = $project->RoundDescription();
-//    if($round) {
-//        $right = $project->RoundName() . " (" . $project->RoundDescription() . ")";
-//    }
-//    else {
-//        $right = $project->Phase();
-//    }
 
     echo "<table id='project_info_table'>\n";
     echo_row_left_right( _("Project Status"), $right );
@@ -535,39 +531,12 @@ function echo_your_recent_pages( $project ) {
     /** @var DpProject $project */
     $username = $User->Username();
     $projectid = $project->ProjectId();
-//    $roundid = $project->RoundId();
 
-//	$timecol = $usercol = "";
-//	switch($roundid) {
-//		case 'P1':
-//			$timecol = "round1_time";
-//			$usercol = "round1_user";
-//			break;
-//		case 'P2':
-//			$timecol = "round2_time";
-//			$usercol = "round2_user";
-//			break;
-//		case 'P3':
-//			$timecol = "round3_time";
-//			$usercol = "round3_user";
-//			break;
-//		case 'F1':
-//			$timecol = "round4_time";
-//			$usercol = "round4_user";
-//			break;
-//		case 'F2':
-//			$timecol = "round5_time";
-//			$usercol = "round5_user";
-//			break;
-//		default:
-//			return;
-//	}
 
 	// -----------------------------------------------------------
 	//    Checked Out (top)
 	// -----------------------------------------------------------
 
-//	$phase = $this->Phase();
 	$sql = "
         SELECT  pv.projectid,
         		pv.pagename,
@@ -587,10 +556,6 @@ function echo_your_recent_pages( $project ) {
 	echo html_comment($sql);
 
 	$checked_out_objs = $dpdb->SqlObjects($sql);
-
-//	if($User->Username() == 'dkretz') {
-//		die();
-//	}
 
 	// ---------
 	$bg_color = '#FFEEBB';
@@ -732,24 +697,6 @@ function show_history($project) {
         WHERE projectid = '$projectid'
         ORDER BY event_time");
 
-    // $events2 = fill_gaps_in_events( $project,  $events );
-
-    // echo "<table border='1'>\n";
-//    foreach ( $events as $event ) {
-        // $ts = strftime('%Y-%m-%d %H:%M:%S', $event- event_time);
-        // echo "
-        // <tr><td>$ts</td>
-        // <td align-='center'>{$event->who}</td>
-        // <td>{$event->event_type}</td>\n";
-
-//        if ( $event["event_type"] == 'transition'
-//                || $event["event_type"] == 'transition(s)') {
-//            $event["from_state"] =  $event["details1"];
-//            $event["to_state"] = $event["details2"];
-
-
-//        }
-//    }
     $tbl = new DpTable("tblevents", "w75");
     $tbl->SetClass("lfloat");
     $tbl->AddColumn("^When", "timestamp");
@@ -768,8 +715,6 @@ function show_history($project) {
 
 function show_page_summary($project) {
 	/** @var DpProject $project */
-	//    if ( !$project->IsProjectTable() )
-	//        return;
 
 
 	echo "
@@ -809,8 +754,6 @@ function show_page_summary($project) {
 function show_page_table($project) {
 
 	/** @var DpProject $project */
-	//    if ( ! $project->IsProjectTable() )
-	//        return;
 
 	echo "
     <div id='page_table_key' class='clear'>
@@ -861,8 +804,6 @@ function offer_images($project) {
 		echo "<p>$textlinkdk</p>\n";
 	}
 
-//	echo "
-//        <input type='submit' name='down_images' value='Download Images Zip File'>
 	echo "
         </form>
         </div>\n";
@@ -894,7 +835,7 @@ function offer_extra_files($project) {
 	$notfiles[] = "wordcheck";
 	$notfiles[] = "text";
 
-	echo _("<div class='bordered margined padded'>
+	echo _("<div class='bordered margined padded clear'>
 	<h4>Project Files</h4>\n");
 
     echo "
@@ -934,11 +875,7 @@ function offer_post_downloads($project, $export_roundid, $level) {
 
 			echo_download_image_zip($project, _("Download Zipped Images"));
 			if ($project->Phase() == "PP") {
-	//            if(! $project->IsPPDownloadFile()) {
-				// export_round($project, $export_roundid, TRUE, FALSE);
-	//			$project->SavePPDownloadFile();
 				echo_download_pp_zip($project, _("Download Zipped Text"), '' );
-	//	        $project->ExportText();
 
 				echo "<li>";
 					echo_uploaded_zips($project, '_first_in_prog_', _('partially post-processed'));
@@ -959,12 +896,7 @@ function offer_post_downloads($project, $export_roundid, $level) {
 
 	</div>\n";
     }
-    else {
-        // phase != PP
-//        echo "
-//        <h4 class='clear'>". _("Concatenated Text Files")."</h4>
-//        <ul class='clean'>\n";
-    }
+
 	echo "
 	<div class='bordered margined padded'>
 		<h4 class='clear'>". _("Concatenated Text Files")."</h4>
@@ -1068,45 +1000,21 @@ function echo_download_ppv_zip($project, $link_text) {
     echo "<li><a href='$url'>$link_text</a></li>\n";
 }
 function echo_download_pp_zip($project, $link_text) {
-//    global $code_url;
     /* @var DpProject $project */
-//    $projectid = $project->ProjectId();
 	echo "<submit id='submit_export' name='submit_export' value='Download PP text'>\n";
     $url = build_path($project->ProjectUrl(), $project->ProjectId() . ".zip");
-//    $pdir = $project->ProjectPath();
-//    $p = "$projectid.zip";
     echo "<li><a href='$url'>$link_text</a></li>\n";
 }
 
 function echo_download_zip( $project, $link_text, $filetype ) {
     /** @var DpProject $project */
 
-//    $projectid = $project->ProjectId();
-//    $pdir = $project->ProjectPath();
-
     if ( $filetype == 'images' ) {
         echo_download_image_zip($project, $link_text);
-        // Generate images zip on the fly,
-        // so it's not taking up space on the disk.
-
-//        $url = "$code_url/tools/download_images.php"
-//                    ."?projectid=$projectid"
-//                    ."&amp;dummy={$projectid}images.zip";
-//        $filesize_b = 0;
-//        foreach( glob("$pdir/*.{png,jpg}", GLOB_BRACE) as $image_path ) {
-//            $filesize_b += filesize($image_path);
-//        }
-//        $filesize_kb = round( $filesize_b / 1024 );
     }
     else {
         echo_download_pp_zip($project, $link_text);
-//        $p = "$projectid$filetype.zip";
-//        $url = build_path($project->ProjectUrl(), $p);
-//        $filesize_kb = @round( filesize( "$pdir/$p") / 1024 );
     }
-
-//    echo "<li><a href='$url'>$link_text</a> ($filesize_kb kb) </li>\n";
-//echo "<li><a href='$url'>$link_text</a></li>\n";
 }
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1167,7 +1075,6 @@ function solicit_postcomments($project, $level) {
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 // pm uploads file named "{projectid}_smooth_avail"
-// smoothers upload files named "{projectid}_smooth_done_{$username}.zip");
 function solicit_smooth_reading($project) {
     global $User;
 
@@ -1303,9 +1210,6 @@ function export_project($project) {
 	/** @var DpProject $project */
 	$text = $project->ExportText();
 	send_string($project->ProjectId()."_PP.txt", $text);
-//	$zipurl = $Context->ZipSaveString($project->ProjectId()."PP", $text);
-//	dump($zipurl);
-//	send_file($zippath);
 }
 
 // vim: sw=4 ts=4 expandtab
