@@ -9,7 +9,9 @@ include_once($relPath.'rounds.php');
 include_once($relPath.'RoundsInfo.php');
 include_once 'pt.inc'; // echo_page_table
 include_once($relPath.'smoothread.inc');           // functions for smoothreading
-//include_once $relPath . "export.php";
+
+$User->IsLoggedIn()
+	or RedirectToLogin();
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
