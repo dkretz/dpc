@@ -601,21 +601,20 @@ function IsMe() {
 
 
 function StackDump() {
-	dump(debug_backtrace());
-//    array_walk(debug_backtrace(),
-//        create_function('$a,$b','print "{$a[\'function\']}()(".basename($a[\'file\']).":{$a[\'line\']}); ";'));
+	$e = new Exception;
+	var_dump($e->getTraceAsString());
 }
 
 function LogMsg($msg) {
     global $dpdb;
     global $User;
-    $user = ($User == null  ? "(logging in)" : $User->Username() );
+    $username = ($User == null  ? "(logging in)" : $User->Username() );
     $sql = "
         INSERT INTO log (username, eventtime, logtext)
-        VALUES ('$user', 
-                UNIX_TIMESTAMP(), 
-                '${msg}')";
-    $dpdb->SqlExecute($sql);
+        VALUES (?, UNIX_TIMESTAMP(), ?)
+        ";
+	$args = array(&$username, &$msg);
+    $dpdb->SqlExecutePS($sql, $args);
 }
 
 function dump_memory_size() {
@@ -1213,29 +1212,26 @@ function PageVersionPath($projectid, $pagecode, $version_number) {
 }
 
 function PageVersionText($projectid, $pagename, $version_number) {
-//	if(is_null($version_number)) {
-//		return "null";
-//	}
 	assert(file_exists(PageVersionPath($projectid, $pagename, $version_number)));
 	return file_get_contents(PageVersionPath($projectid, $pagename, $version_number));
 }
 
+/*
 function SetPageVersionText($projectid, $pagecode, $version_number, $text) {
 	assert(! is_null($version_number));
-	return file_put_contents(PageVersionPath($projectid, $pagecode, $version_number), urtrim($text));
+	return file_put_contents(PageVersionPath($projectid, $pagecode, $version_number), trim_blank_lines($text));
 }
+*/
 
 function norm($str) {
-	return urtrim(preg_replace("/\R/u", "\n", $str));
+	$ptn = array("/\R/u",           // normalize newline
+				 "/\t+/",           // any tabs to one space
+				 "/\  +/",          // multiple spaces to one
+				 "/[”‟““]/u",        // curly double-quotes to not
+				 "/[‘‘’‛]/u");        // curly single-quotes to not
+	$rpl = array("\n", " ", " ", '"', "'");
+	return trim_blank_lines(preg_replace($ptn, $rpl, $str));
 }
-
-//function split_language_names($langnames) {
-//    if(empty($langnames)) {
-//        return "English";
-//    }
-//    return preg_split("/ +?with +?/", $langnames);
-//}
-
 
 /**
  * Args and other globals
@@ -1375,7 +1371,8 @@ function ArgLangCode($default = "") {
     return Arg("langcode", $default);
 }
 
-function urtrim($str) {
+// trim whitepsace at end of string (including blank lines)
+function trim_blank_lines($str) {
 	return preg_replace("/[\pZ\pC]+$/u", "", $str);
 }
 
@@ -1715,6 +1712,11 @@ function text_to_words($text) {
     $ptn = "~".UWR."~iu";
     preg_match_all($ptn, $text, $m);
     return $m[0];
+}
+
+function dkretz() {
+	global $User;
+	return $User->Username() == 'dkretz';
 }
 
 
