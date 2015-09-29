@@ -12,12 +12,11 @@ define("HORIZONTAL_LAYOUT_INDEX", 0);
 class DpUser
 {
     protected $_bb;
-	/** @var  ForumUser $_forum_user */
-//	protected $_forum_user;
     protected $_username;
     protected $_row;
     protected $_settings;
     protected $_userP;
+	protected $_credits;
 
     public function __construct($username = "") {
         $this->_bb = new DpPhpbb3();
@@ -26,11 +25,6 @@ class DpUser
         $this->init($this->_username);
     }
 
-	// init() is called from DpUeer constructor
-	// and twice from DpThisUser
-		// -- when in a session,
-		// -- after submitting name and password
-
     protected function init($username) {
         global $dpdb;
 
@@ -38,34 +32,12 @@ class DpUser
 		    die( "Cannot find user $username in phpBB." );
 	    }
         $this->_username = $username;
-//	    $bb_users_table = build_forum_users_table();
 
 	    $is_dp_user = DpContext::UserExists($username);
-
-//	        SELECT COUNT(1) FROM users
-//	        WHERE username = '$username'");
 
 	    // if not in our database
         if( ! $is_dp_user ) {
 	        LogMsg("INFO: creating dpc user $username");
-	        // assert it's in the phpbb database
-//	        assert(! $dpdb->SqlExists("
-//						SELECT 1 FROM $bb_users_table
-//						WHERE username_clean = LOWER('$username')"));
-//
-	        // query for what we need from the phpbb database
-//	        $sql = "
-//				SELECT  user_id,
-//						username,
-//						user_email,
-//						user_login_attempts,
-//						user_lang,
-//						user_new_privmsg,
-//						user_unread_privmsg
-//				FROM $bb_users_table
-//				WHERE username_clean = LOWER('$username')";
-
-//	        $row = $dpdb->SqlOneRow($sql);
 	        $lang      = $this->_bb->Language();
 
 	        $sql = "
@@ -82,17 +54,14 @@ class DpUser
 							UNIX_TIMESTAMP(),
 							UNIX_TIMESTAMP())";
 	        $args = array(&$username, &$lang);
-//	        say(html_comment($sql));
 	        if($dpdb->SqlExecutePS($sql, $args) != 1) {
 		        LogMsg("Create DP User Failed");
 		        die( "Create DP User Failed." );
 	        }
-//            $this->create_dp_user($username);
             assert(DpContext::UserExists($this->Username()));
 	        LogMsg("Success - create DP user $username");
         }
 
-//	    $this->_forum_user = new ForumUser($username);
     }
 
     public function FetchUser() {
@@ -114,7 +83,8 @@ class DpUser
                     u.u_top10,
                     u.team_1,
                     u.team_2,
-                    u.team_3
+                    u.team_3,
+                    u.credits
             FROM users u
             WHERE u.username = '$username'";
 	    $this->_row = $dpdb->SqlOneRow($sql);
@@ -285,6 +255,40 @@ class DpUser
             WHERE username = '{$User->Username()}'");
     }
 
+	public function &Credits() {
+		if(! $this->_credits) {
+			$credstr = $this->_row['credits'];
+			$this->_credits = unserialize($credstr);
+		}
+		return $this->_credits;
+	}
+
+	private function UpdateCredits() {
+		global $dpdb;
+		$username = $this->Username();
+		$creds = $this->Credits();
+		$credstr = serialize($creds);
+		$sql = "UPDATE users SET credits = ?
+				WHERE username = ?";
+		$args = array(&$credstr, &$username);
+		$dpdb->SqlExecute($sql, $args);
+	}
+	public function SetBoolean($credit, $val) {
+		$creds = $this->Credits();
+		$creds[$credit] = ($val ? "yes" : "no");
+		$this->UpdateCredits();
+	}
+	public function SetSetting($field, $val) {
+		global $dpdb;
+		$username = $this->Username();
+		$val = is_null($val) ? "" : $val;
+		$sql = "UPDATE users SET $field = ?
+				WHERE username = ?";
+		$args = array(&$val, &$username);
+		$dpdb->SqlExecutePS($sql, $args);
+	}
+
+
     public function MayModifyAccess() {
         return $this->MayGrantAccess()
             || $this->MayRevokeAccess();
@@ -332,9 +336,6 @@ class DpUser
 
     public function HasRole($code) {
         global $dpdb;
-//	    if($this->IsSiteManager()) {
-//		    return true;
-//	    }
         $username = $this->Username();
         $sql = "
             SELECT 1 FROM user_roles
@@ -633,7 +634,7 @@ class DpUser
         global $dpdb;
         $username = $this->Username();
         $count = $this->RoundPageCount($roundid);
-		if (true) return 0;
+//		if (true) return 0;
         return $dpdb->SqlOneValue("
             SELECT COUNT(1) + 1 FROM
             (
@@ -697,19 +698,11 @@ class DpUser
 				AND state = 'C'
                 AND phase = '$roundid'
 				AND version_time >= UNIX_TIMESTAMP(CURRENT_DATE())");
-//        return $dpdb->SqlOneValue("
-//            select page_count FROM user_round_pages_today
-//            WHERE username = '{$this->Username()}'
-//                AND phase = '$roundid'");
     }
 
     public function MayManageRoles() {
         return $this->IsSiteManager();
     }
-
-//    public function ForumUserId() {
-//        return $this->_bb->UserId();
-//    }
 
     public function IsPostedNotice($projectid) {
         global $dpdb;
@@ -760,92 +753,13 @@ class DpUser
                 WHERE username = '{$this->Username()}'");
     }
 
-
-//	public function Location() {
-//		return $this->_forum_user->Location();
-//	}
     public function IsEmailUpdates() {
         return $this->_row['emailupdates'];
     }
 
-		public function Bb() {
-			return $this->_bb;
-		}
-
-//		public function BbUser() {
-//			return $this->_bb->bb_user();
-//		}
-
-//		public function UserData() {
-//			return $this->_bb->UserData();
-//		}
-
-//		public function LoginAttempts() {
-//			return $this->_bb->LoginAttempts();
-//		}
-
-//		public function Phpbb3UserData() {
-//			return $this->_bb->UserData();
-//		}
-
-	/*
-		protected function create_dp_user($username) {
-			global $dpdb;
-
-//			$bb_users_table = build_forum_users_table();
-
-			// A little validation
-			if($username == "")
-				return;
-//			if( ! $dpdb->SqlExists("
-//						SELECT 1 FROM $users_table
-//						WHERE username_clean = LOWER('$username')"))
-//				return;
-
-
-			// find the user in phpbb
-
-			$row = $dpdb->SqlOneRow("
-				SELECT  user_id,
-						username,
-						user_email,
-						user_login_attempts,
-						user_lang,
-						user_new_privmsg,
-						user_unread_privmsg
-				FROM $bb_users_table
-				WHERE username_clean = LOWER('$username')");
-
-			if(count($row) == 0) {
-				die("Unable to find phpBB3 user $username in order to create DP user.");
-			}
-
-			// grab the phpbb user key (which we hopefully don't use)
-			$bbid      = $row['user_id'];
-			$lang      = $row['user_lang'];
-
-			$lang = $this->_bb->Language();
-
-			$sql = "
-					INSERT INTO users
-						(
-							username,
-							u_intlang,
-							t_last_activity,
-							date_created)
-					VALUES
-						(
-							?,
-							?,
-							UNIX_TIMESTAMP(),
-							UNIX_TIMESTAMP())";
-
-			$args = array( &$username, &$lang);
-			if($dpdb->SqlExecutePS($sql, $args) != 1) {
-				die( "Create DP User Failed." );
-			}
-		}
-	*/
+	public function Bb() {
+		return $this->_bb;
+	}
 
     public function FirstRoundDate($round_id) {
         global $dpdb;
@@ -980,58 +894,90 @@ class DpUser
 
 class DpThisUser extends DpUser
 {
-                    // if both args are missing, try for a session
-                    function __construct($username = "", $password = "") {
-                        $this->_bb = new DpPhpbb3();
+	// if both args are missing, try for a session
+	function __construct($username = "", $password = "") {
+		$this->_bb = new DpPhpbb3();
 
-	                    // Is the user in a session?
-                        if($this->_bb->IsLoggedIn()) {
-	                        //	If so, phpbb should give us a username
-                            $username = $this->_bb->Username();
+		// Is the user in a session?
+		if($this->_bb->IsLoggedIn()) {
+			//	If so, phpbb should give us a username
+			$username = $this->_bb->Username();
 
-                            $this->init($username);
-                            $this->SetLatestVisit();
-                            return;
-                        }
+			$this->init($username);
+			$this->SetLatestVisit();
+			return;
+		}
 
-                        if($username == "" || $password == "") {
-                            return;
-                        }
+		if($username == "" || $password == "") {
+			return;
+		}
 
-//	                    $this->_bb->DoLogin($username, $password);
-                        if($this->_bb->DoLogin($username, $password)) {
-//                        if($this->_bb->IsLoggedIn()) {
-                            $username = $this->_bb->Username();
-                            assert($username != "");
-                            $this->init($username);
-                            $this->SetLatestVisit();
-                            return;
-                        }
-                    }
+		if($this->_bb->DoLogin($username, $password)) {
+			$username = $this->_bb->Username();
+			assert($username != "");
+			$this->init($username);
+			$this->SetLatestVisit();
+			return;
+		}
+	}
 
-                    public function LogOut() {
-                        $this->_bb->DoLogout();
-                    }
+	public function LogOut() {
+		$this->_bb->DoLogout();
+	}
 
-                    public function IsLoggedIn() {
-                        if($this->_bb->IsLoggedIn()) {
-                            assert($this->Username() != "");
-                            return true;
-                        }
-                        return false;
-                    }
+	public function IsCredit($credit) {
+		global $dpdb;
 
-                    public function SetLatestVisit() {
-                        global $dpdb;
-                        $dpdb->SqlExecute("
-                            UPDATE users
-                            SET t_last_activity = UNIX_TIMESTAMP()
-                            WHERE username = '$this->_username'");
-                    }
+		$username = $this->Username();
+		return $dpdb->SqlExists("
+			SELECT 1 FROM user_credits
+			WHERE username = '$username'
+				AND credit = '$credit'");
 
-                    public function InboxCount() {
-                        return $this->_bb->InboxCount();
-                    }
+	}
+	public function ClearCredit($credit) {
+		global $dpdb;
+
+		$username = $this->Username();
+		$sql = "DELETE FROM user_credits
+				WHERE username = ?
+					AND credit = ?";
+		$args = array(&$username, &$credit);
+		$dpdb->SqlExecutePS($sql, $args);
+	}
+
+	public function SetCredit($credit) {
+		global $dpdb;
+
+		$username = $this->Username();
+		$sql = "REPLACE INTO user_credits (
+					username,
+					credit
+				)
+				VALUES (?, ?)";
+		$args = array(&$username, &$credit);
+		$dpdb->SqlExecutePS($sql, $args);
+	}
+
+	public function IsLoggedIn() {
+		if($this->_bb->IsLoggedIn()) {
+			assert($this->Username() != "");
+			return true;
+		}
+		return false;
+	}
+
+	public function SetLatestVisit() {
+		global $dpdb;
+		$dpdb->SqlExecute("
+			UPDATE users
+			SET t_last_activity = UNIX_TIMESTAMP()
+			WHERE username = '$this->_username'");
+	}
+
+	public function InboxCount() {
+		return $this->_bb->InboxCount();
+	}
 }
 
 class DpTeam
