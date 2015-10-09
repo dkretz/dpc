@@ -113,21 +113,19 @@ class DpProject
 
         $sql = "
             SELECT pagename, version
-            FROM projects p
-            JOIN page_last_versions pv
-            	ON p.projectid = pv.projectid
-            WHERE p.projectid = '$projectid'
-            order by pv.pagename";
+            FROM page_last_versions pv
+            WHERE projectid = ?
+            order by pagename";
+	    $args = array(&$projectid);
 
-
-        $rows = $dpdb->SqlRows($sql);
+        $rows = $dpdb->SqlRowsPS($sql, $args);
         foreach($rows as $row) {
-            $name = $row['pagename'];
+            $pagename = $row['pagename'];
 	        $version = $row['version'];
-	        $text = PageVersionText($projectid, $name, $version);
+	        $text = PageVersionText($projectid, $pagename, $version);
             $this->_text .= ("\n" . $text);
-            $this->_page_char_offset_array[$name] = mb_strlen($text);
-            $this->_page_byte_offset_array[$name] = strlen($text);
+            $this->_page_char_offset_array[$pagename] = mb_strlen($text);
+            $this->_page_byte_offset_array[$pagename] = strlen($text);
         }
     }
 
@@ -607,7 +605,7 @@ class DpProject
 		static $_names;
 		if ( ! $_names ) {
 			$_names = $dpdb->SqlValues( "
-				SELECT pagename FROM pages
+				SELECT DISTINCT pagename FROM page_last_versions
 				WHERE projectid = '{$this->ProjectId()}'
 				ORDER BY pagename" );
 		}
@@ -1164,7 +1162,7 @@ class DpProject
 
                 FROM pages pg
 
-                LEFT JOIN page_last_versions pv
+                JOIN page_last_versions pv
                 	ON pg.projectid = pv.projectid
                 	AND pg.pagename = pv.pagename
 
@@ -1516,9 +1514,16 @@ class DpProject
         return $pgs;
     }
 
-    public function AvailableCount() {
-	    return $this->StateCount("A");
-    }
+
+	public function PageCount() {
+		global $dpdb;
+		$projectid = $this->ProjectId();
+		$sql = "
+	        SELECT COUNT(1) FROM page_last_versions
+	        WHERE projectid = ?";
+		$args = array(&$projectid);
+		return $dpdb->SqlOneValuePS($sql, $args);
+	}
 
 	protected function StateCount($state) {
 		global $dpdb;
@@ -1529,17 +1534,23 @@ class DpProject
 	        WHERE projectid = '$projectid'
 	        	AND state = '$state'");
 	}
+	public function AvailableCount() {
+		return $this->StateCount("A");
+	}
+	public function BadCount() {
+		return $this->StateCount("B");
+	}
     public function CompletedCount() {
 	    return $this->StateCount("C");
     }
+	public function CheckedOutCount() {
+		return $this->StateCount("O");
+	}
 
     public function UncompletedCount() {
         return $this->PageCount() - $this->CompletedCount();
     }
 
-    public function CheckedOutCount() {
-	    return $this->StateCount("O");
-    }
 
 	public function ReclaimableCount() {
 		global $dpdb;
@@ -1555,9 +1566,6 @@ class DpProject
         return $this->BadCount() > 0;
     }
 
-    public function BadCount() {
-	    return $this->StateCount("B");
-    }
 
     public function BackupTableName() {
         return $this->ProjectId() . "_backup";
@@ -1584,7 +1592,6 @@ class DpProject
         global $Context;
         global $dpdb;
 
-	    $projectid = $this->ProjectId();
         $new_project_id = $Context->NewProjectId();
         $sql = "
             INSERT INTO projects
@@ -1611,7 +1618,8 @@ class DpProject
                  extra_credits
              )
              SELECT
-             	?,
+
+                '{$new_project_id}',
                 p.username,
                 'project_new',
                 'PREP', 
@@ -1634,9 +1642,8 @@ class DpProject
                 p.extra_credits
                            
             FROM projects AS p
-            WHERE projectid = ?";
-	    $args = array(&$new_project_id, &$projectid);
-        $dpdb->SqlExecutePS($sql, $args);
+            WHERE projectid = '{$this->ProjectId()}'";
+        $dpdb->SqlExecute($sql);
 //        $this->CreateProjectTable();
         $this->LogProjectEvent(PJ_EVT_CLONE, "creating {$new_project_id}");
         $this->SetAutoQCHold();
@@ -1661,13 +1668,6 @@ class DpProject
 				return false;
 		}
 	}
-
-    public function PageCount() {
-	    global $dpdb;
-	    return $dpdb->SqlOneValue("
-	        SELECT COUNT(1) FROM pages
-	        WHERE projectid = '{$this->ProjectId()}'");
-    }
 
     public function ProjectId() {
         return $this->_projectid;
@@ -2292,7 +2292,7 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
     public function PageNameBefore($pagename) {
         global $dpdb;
         $sql = "
-			SELECT MAX(pagename) FROM pages
+			SELECT MAX(pagename) FROM page_last_versions
 			WHERE projectid = '{$this->ProjectId()}'
 				AND pagename < '$pagename'";
 //            SELECT MAX(fileid) FROM $this->_projectid
@@ -2319,7 +2319,7 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
     public function PageNameAfter($pagename) {
         global $dpdb;
         $sql = "
-            SELECT MIN(pagename) FROM pages
+            SELECT MIN(pagename) FROM page_last_versions
             WHERE projectid = '{$this->ProjectId()}'
             	AND pagename > '$pagename'";
         return $dpdb->SqlOneValue($sql);
@@ -2513,10 +2513,10 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
 			JOIN (
 				SELECT projectid,
 						PHASE,
-						COUNT(pv.state = 'A') n_avail,
-						COUNT(pv.state = 'O') n_out,
-						COUNT(pv.state = 'C') n_done,
-						COUNT(pv.state = 'B') n_bad,
+						SUM(pv.state = 'A') n_avail,
+						SUM(pv.state = 'O') n_out,
+						SUM(pv.state = 'C') n_done,
+						SUM(pv.state = 'B') n_bad,
 						COUNT(1) n_pgs
 				FROM page_last_versions pv
 				WHERE projectid = '$projectid'
@@ -2957,17 +2957,17 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
         return $ary;
     }
 //
-    public function PageByteOffsetArray() {
-        $ary = array();
-	    if(! $ary) {
-		    $netos = 0;
-		    foreach ( $this->_page_byte_offset_array as $pg => $os ) {
-			    $netos += $os;
-			    $ary[] = array( "page" => $pg, "offset" => $netos );
-		    }
-	    }
-        return $ary;
-    }
+	public function PageByteOffsetArray() {
+		$ary = array();
+		if(! $ary) {
+			$netos = 0;
+			foreach ( $this->_page_byte_offset_array as $pg => $os ) {
+				$netos += $os;
+				$ary[] = array( "page" => $pg, "offset" => $netos );
+			}
+		}
+		return $ary;
+	}
 
     public function PageNameForByteOffset($offset) {
         $ret = null;
@@ -2985,6 +2985,7 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
         }
         return null;
     }
+
     public function ByteOffsetForPageName($pagename) {
         return $this->_page_byte_offset_array[$pagename];
     }
@@ -3000,7 +3001,8 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
      * given a word and its character offset into project text,
      * locate the page and line # on page and return 5 adjacent lines
      */
-    public function ContextForOffset($word, $offset) {
+    public function ContextForByteOffset($word, $offset) {
+	    dump($word, $offset);
         $pg = $this->PageForByteOffset($offset);
 	    if(! $pg) {
 		    assert(false);
@@ -3008,11 +3010,13 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
 		    dump(" |$word|$offset");
 	    }
         $pagename = $pg->PageName();
+	    dump($pagename);
         $pgtext = $pg->ActiveText();
         $pgoffset = $this->ByteOffsetForPageName($pagename);
         $pglines = text_lines($pgtext);
         $pgposn = $offset - $pgoffset;
         $lineindex = RegexCount("\n", "u", bleft($pgtext, $pgposn));
+	    dump("$pgoffset  $pgposn  $lineindex");
 
         $ary = array();
         $ary['offset'] = $offset;
@@ -3032,13 +3036,13 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
     }
 
     public function StringContexts($str) {
-        $stroffsets  = RegexStringOffsets($str, $this->TextForWords());
+        $stroffsets  = RegexStringByteOffsets($str, $this->TextForWords());
         $rsp         = array();
         $rsp['str']  = $str;
         $rsp['contexts'] = array();
         foreach($stroffsets as $oset) {
             $offset = $oset[1];
-            $wctxt = $this->ContextForOffset($str, $offset);
+            $wctxt = $this->ContextForByteOffset($str, $offset);
             $rsp['contexts'][] = $wctxt;
         }
         return $rsp;
@@ -3046,14 +3050,15 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
 
     public function WordContexts($word) {
         // get project positions for the word
-        $wdoffsets   = RegexWordOffsets($word, $this->TextForWords());
+	    $tfw = $this->TextForWords();
+        $wdoffsets   = WordByteOffsets($word, $tfw);
         $rsp         = array();
         $rsp['word'] = $word;
         $rsp['contexts'] = array();
 
         foreach($wdoffsets as $oset) {
             $offset = $oset[1];
-            $wctxt = $this->ContextForOffset($word, $offset);
+            $wctxt = $this->ContextForByteOffset($word, $offset);
             $rsp['contexts'][] = $wctxt;
         }
         return $rsp;
