@@ -22,9 +22,19 @@ $acceptwords        = Arg("acceptwords");
 $awords             = preg_split("/\t/", $acceptwords);
 
 $page               = new DpPage($projectid, $pagename);
+switch($page->Phase()) {
+	case "PREP":
+	case "P1":
+	case "P2":
+	case "P3":
+		$tatext = norm($tatext);
+		break;
+	default:
+		break;
+}
 
 if(count($awords) > 0) {
-    $page->AcceptWordsArray($langcode, $awords);
+    $page->SuggestWordsArray($langcode, $awords);
 }
 
 if(! $page->UserIsOwner()) {

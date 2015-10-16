@@ -42,7 +42,6 @@ $json           = json_decode($jq);
 
 if(! is_object($json)) {
     $err = "wc: json not-an-object error: {$jq}";
-    LogMsg($err);
     send_alert($err);
     echo "not an object :: $jq";
     exit;

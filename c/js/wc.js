@@ -47,7 +47,7 @@ function eContextInit() {
     addEvent(formcontext.btngood,    "click", eGoodWordClick);
     addEvent(formcontext.btnbad,     "click", eBadWordClick);
     addEvent(formcontext.btnrefresh, "click", eRefreshClick);
-    addEvent(formcontext.btnreplace, "click", eReplaceWordClick);
+    //addEvent(formcontext. btnreplace, "click", eReplaceWordClick);
 
     formcontext.btnremove.style.display =
         ['good', 'bad', 'suggested']
@@ -64,7 +64,7 @@ function eContextInit() {
             .indexOf($("mode").value) >= 0
         ? "inline-block"
         : "none";
-    formcontext.btnreplace.style.display = "inline-block";
+    //formcontext.btnreplace.style.display = "inline-block";
     switch($("mode").value) {
         default:
             $('command-section').style.height = "25%";
@@ -80,16 +80,7 @@ function eContextInit() {
 
     sync_context();
 }
-/*
- 1. Delete BOM
- 2. EOL spaces
- 3.
-*/
 
-
-function eReplaceWordClick() {
-
-}
 function eGoodWordClick(e) {
     var i = formcontext.tblcontext.selectedIndex;
     if(i >= 0) {
