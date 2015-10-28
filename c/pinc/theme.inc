@@ -39,12 +39,12 @@ function theme($nameofpage, $location, $extra_args = array()) {
 */
 
                 html_header($nameofpage, $extra_args);
-                html_logobar($nameofpage);
+                html_logobar();
                 echo "
     <table id='tbl1'>
     <tr>
     <td class='left top navback w25'>\n";
-                html_statsbar($nameofpage);
+                html_statsbar();
                 echo "
     </td>
     <td class='right top mainbody'>
@@ -71,7 +71,7 @@ function theme($nameofpage, $location, $extra_args = array()) {
 // -------------------------------------------------
 
                 html_header($nameofpage, $extra_args);
-                html_logobar($nameofpage);
+                html_logobar();
                 echo "
     <table id='tbl2' class='w100'>
     <tr>
@@ -89,7 +89,7 @@ function theme($nameofpage, $location, $extra_args = array()) {
         <img src='$code_url/graphics/r_curve.gif' style='position: relative; top: -3px;' alt=''>
     </td>
     <td id='tbl2c3' class='navbar w25 left top'>\n";
-                html_statsbar($nameofpage);
+                html_statsbar();
                 echo "</td></tr></table>\n";
                 html_footer();
             }
@@ -104,7 +104,7 @@ function theme($nameofpage, $location, $extra_args = array()) {
 // -----------------------------------------------------
 
             html_header($nameofpage, $extra_args);
-            html_logobar($nameofpage);
+            html_logobar();
             echo "
     <table id='tbl3' class='w100'>
     <tr>
@@ -470,6 +470,7 @@ function show_round_specific_stats( $round_id ) {
 
        . "</pre>\n";
 
+    /*
     // Number of users
     $num_users = $dpdb->SqlOneValue("
         SELECT COUNT(1) FROM users" );
@@ -480,10 +481,11 @@ function show_round_specific_stats( $round_id ) {
 
     echo sprintf( _("<p>%s registered users</p>\n"), number_format($num_users) );
     echo sprintf( _("<p>%s users with one page or more</p>\n"), number_format($num_pagers));
+    // ---------------------------------------------------------------------
 
     echo "
     <hr class='w75 center'>\n";
-    // ---------------------------------------------------------------------
+    */
 
     if ($User->IsLoggedIn()) {
         $rankname = honorific_for_count($round_id, $User->RoundPageCount($round_id));
@@ -613,9 +615,9 @@ function show_key_help_links() {
         <h5>"._("Key Help Documents:")."</h5>
 		<a href='{$wiki_url}/FAQ_Central'>"._("Frequently Asked Questions")."</a>
 		<br>
-		<a href='{$wiki_url}/Proofreading_Guidelines'>"._("Proofreading Guidelines")."</a>
+		".link_to_proofing_guidelines()."
 		<br>
-		<a href='{$wiki_url}/Formatting_Guidelines'>"._("Formatting Guidelines")."</a>
+		".link_to_formatting_guidelines()."
 		</div>\n";
 }
 
