@@ -18,6 +18,7 @@ $logo_url = DPC_URL . "c/graphics/dpclogo.png";
 $ajax_url = DPC_URL . "/c/wc.php";
 
 $code_url = DPC_URL . '/c';
+$stats_url = DPC_URL . '/c/stats';
 $pm_url   = $code_url . "/tools/project_manager";
 $wc_url   = DPC_URL . "/c/wc";
 
@@ -139,6 +140,7 @@ $image_sources_manager_addr = 'ism@pgdpcanada.net';
 
 // -----------------------------------------------------------------------------
 
+$completed_books_offset = 2185;
 $testing = FALSE;
 $use_php_sessions = TRUE;
 $cookie_encryption_key = 'A_LONG_STRING_OF_GIBBERISH2';
