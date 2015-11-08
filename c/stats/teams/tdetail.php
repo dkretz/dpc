@@ -185,7 +185,7 @@ function showTeamProfile($team) {
     /** @var DpTeam $team */
     global $code_url;
 
-    $creator_url    = "$code_url/stats/members/member_stats.php?id=" . $team->CreatorId();
+    $creator_url    = "$code_url/stats/members/member_stats.php?username=" . $team->CreatedBy();
     $creator_link   = link_to_url($creator_url, $team->CreatedBy());
     $topic_url      = "$code_url/stats/teams/team_topic.php?team={$team->Id()}";
     $topic_link     = link_to_url($topic_url, _("Team Discussion"));

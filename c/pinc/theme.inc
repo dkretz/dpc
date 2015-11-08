@@ -333,13 +333,18 @@ function html_statsbar() {
         ". _("More Statistics")."</a>
         </div>\n";
 
+        if(Arg("sr")) {
+            show_sr_projects();
+        }
 
         echo "<hr class='w75 center'>\n";
         show_user_teams();
 
         echo "<hr class='w75 center'>\n";
-        show_key_help_links();
+        show_help_links();
 	    echo "<hr class='w75 center'>\n";
+        show_admin_sidebar();
+        echo "<hr class='w75 center'>\n";
     }
 }
 
@@ -438,7 +443,6 @@ function show_round_specific_stats( $round_id ) {
 
     // Show the site statistics
 
-    global $dpdb;
     echo "
         <h5 class='center'>" . _("Pages completed in $round_id") . "</h5>
         <h5 class='center'>" . _("Site Statistics:") . "</h5>
@@ -528,6 +532,28 @@ function show_round_specific_stats( $round_id ) {
     echo "</td></tr></table>";
 }
 
+function show_sr_projects() {
+    global $dpdb;
+    // ---------------------------------------------------------------------
+
+    $sql = "SELECT  nameofwork,
+                    authorsname,
+                    DATEDIFF(DATE(FROM_UNIXTIME(smoothread_deadline)), CURRENT_DATE()) days_left
+            FROM projects
+            WHERE DATE(FROM_UNIXTIME(smoothread_deadline)) >= CURRENT_DATE()
+            ORDER BY smoothread_deadline";
+    $rows = $dpdb->SqlRows($sql);
+
+    echo "<div id='divsr' class='sidebar'>
+          <h5>" . _("Available Smooth Reading Projects:") ."</h5>
+    <ul>\n";
+    foreach($rows as $row) {
+        echo "<li><i>{$row['nameofwork']}</i> by {$row['authorsname']}</li>\n";
+    }
+    echo "</ul></div>\n";
+
+}
+
 function honorific_for_count($round_id, $count) {
     global $Honorifics;
     $dignity = "Novice";
@@ -555,19 +581,36 @@ function show_user_teams()
     global $dpdb;
     global $User;
 
-    $rows = $dpdb->SqlRows("
-        SELECT teamname, id FROM user_teams
-        WHERE id IN ({$User->Team1()}, {$User->Team2()}, {$User->Team3()})");
+    $username = $User->Username();
+    $sql = "
+        SELECT u.username,
+               ut1.id id1,
+               ut1.teamname team1,
+               ut2.id id2,
+               ut2.teamname team2,
+               ut3.id id3,
+               ut3.teamname team3
+        FROM users u
+        LEFT JOIN user_teams ut1 ON u.team_1 = ut1.id
+        LEFT JOIN user_teams ut2 ON u.team_2 = ut2.id
+        LEFT JOIN user_teams ut3 ON u.team_3 = ut3.id
+        WHERE u.username = ?";
+    $args = array(&$username);
+    $row = $dpdb->SqlOneRowPS($sql, $args);
 
     echo "
     <div id='divteams' class='center sidebar'>
     <h5>" .  _("Your Teams:") . "</h5>\n";
 
-    foreach($rows as $row) {
-        echo "
-    <a href='$code_url/stats/teams/tdetail.php?tid=".$row['id']."'>".$row['teamname']."</a><br/>\n";
+    if($row['id1'] != 0)
+        echo link_to_team($row['id1'], $row['team1'], true) . "<br>";
 
-    }
+    if($row['id2'] != 0)
+        echo link_to_team($row['id2'], $row['team2'], true) . "<br>";
+
+    if($row['id3'] != 0)
+        echo link_to_team($row['id3'], $row['team3'], true) . "<br>";
+
     echo "
     <br/>
     <a href='$code_url/stats/teams/teamlist.php'>"._("View all teams")."</a>
@@ -607,7 +650,7 @@ function show_completed_projects() {
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-function show_key_help_links() {
+function show_help_links() {
     global $wiki_url;
 
     echo "
@@ -619,6 +662,48 @@ function show_key_help_links() {
 		<br>
 		".link_to_formatting_guidelines()."
 		</div>\n";
+}
+
+function show_admin_sidebar() {
+    global $User;
+    echo "
+    <div id='admin_sidebar' class='sidebar center'>
+    <h5>Admin Links</h5>
+    <pre class='left'>
+    <a href='http://www.pgdpcanada.net/c/tools/prep.php'>Projects Before P1</a>
+    <a href='http://www.pgdpcanada.net/c/tools/p1counts.php'>P1 Genre Counts</a>
+    <a href='http://www.pgdpcanada.net/c/tools/active_projects.php'>Active Project List</a>
+    <a href='http://www.pgdpcanada.net/c/tools/holds.php'>Active Projects On Hold</a>
+    <a href='http://www.pgdpcanada.net/c/search2.php'>Extended Project Search</a>
+    <a href='http://www.pgdpcanada.net/c/user_pages.php'>Diffs for a Round</a>
+    <a href='http://www.pgdpcanada.net/c/tools/bad.php'>Bad Pages</a>
+    <a href='https://docs.google.com/spreadsheets/d/1Ut-t3zDouO5eSJShQsreG0LTjvFP2dszgXHGa-CUWcY/edit#gid=0'>DoD Spreadsheet</a>
+    <a href='https://docs.google.com/spreadsheets/d/1lU5VeCLMIPhkqqGc-g0iE7Ld5EU5b-sI7DcoKiUwZPo/edit#gid=0'>Clearance Spreadsheet</a>\n";
+        if($User->IsSiteManager() || $User->IsProjectFacilitator() || $User->IsProjectManager()) {
+            echo "
+    <a href='http://www.pgdpcanada.net/c/tools/site_admin/user_roles.php'>Manage Roles for a User</a>
+    <a href='http://www.pgdpcanada.net/c/tools/p1release.php'>Project P1 Release</a>
+    <a href='http://www.pgdpcanada.net/c/tools/pper.php'>Post Processor Report</a>
+    <a href='http://www.pgdpcanada.net/c/tools/site_admin/sitenews.php'>Site News Central</a>\n";
+        }
+        echo "
+    </pre>\n";
+//        if($User->IsSiteManager()
+//            || $User->IsProjectFacilitator()
+//            || $User->IsProjectManager()
+//            || $User->IsProjectManager()) {
+//            echo "
+//        <form id='frmadmin' name='frmadmin' action='' method='POST'>
+//        <div class='lfloat'>
+//             <p>Project Page for project ID:
+//            <input type='text' name='link_projectid' id='link_projectid'>
+//            <input type='submit' name='cmdprojectid' id='cmdprojectid' value='Submit'></p>
+//		</div>
+//        </form>\n";
+//        }
+        echo "
+    </div>
+    <hr class='left clear hidden' />\n";
 }
 
 function show_backlogs() {

@@ -2,8 +2,6 @@
 $relPath='./../pinc/';
 include($relPath.'dpinit.php');
 include($relPath.'project_states.inc');
-include($relPath.'theme.inc');
-new dbConnect();
 
 $title=_("Miscellaneous User Statistics");
 theme($title,'header');

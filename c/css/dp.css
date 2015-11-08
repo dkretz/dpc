@@ -730,6 +730,12 @@ div.recent {
     padding: 0;
 }
 
+
+.shrink-to-fit {
+    padding: .5em 2.5em;
+    display: inline-block;
+}
+
 .pg_saved,
 .my_pages_saved {
     border-top: 1px solid #ddd;
@@ -2075,6 +2081,14 @@ table#tbl_proj_list select {
     /* width: 8em; */
 }
 
+div.sidebar {
+    border: 1px solid lightgray;
+}
+
+div.sidebar li {
+    margin-bottom: .4em ;
+}
+div.sidebar li,
 table.sidebar div,
 table.sidebar td {
     color: #333333;

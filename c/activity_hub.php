@@ -102,7 +102,7 @@ echo "
 </div>\n";
 */
 
-show_admin_links();
+//show_admin_links();
 
 if ( $User->PageCount() <= 300 && $User->InboxCount() > 0 ) {
         echo
@@ -341,6 +341,7 @@ function summarize_projects( $phase) {
 
 }
 
+/*
 function show_admin_links() {
     global $User;
     echo "
@@ -380,5 +381,5 @@ function show_admin_links() {
     echo "
     </div>
     <hr class='left clear hidden' />\n";
-
 }
+*/

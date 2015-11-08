@@ -63,13 +63,13 @@ else {
     if ($fatal_error != '') {
         $fatal_error = _('site error') . ': ' . $fatal_error;
         echo "<br><h3>$fatal_error</h3>\n";
-        theme('', 'footer');
-        exit;
     }
-
-    $pih->show_form($project);
+    else {
+        $pih->show_form($project);
+    }
 }
 theme("", "footer");
+exit;
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -144,21 +144,21 @@ class ProjectInfoHolder
     // -------------------------------------------------------------------------
 
     public function set_from_post() {
-        $errors = '';
+        $errors = array();
 
         if( $this->projectid == '') {
-            $errors .= "Project ID is required..<br>"; 
+            $errors[] = "Project ID is required..<br>";
         }
         $this->nameofwork = Arg('nameofwork');
         if ( $this->nameofwork == '' ) {
-            $errors .= "Name of work is required.<br>"; 
+            $errors[] = "Name of work is required.<br>";
         }
 
         $this->authorsname = Arg('authorsname');
-        if ( $this->authorsname == '' ) { $errors .= "Author is required.<br>"; }
+        if ( $this->authorsname == '' ) { $errors[] = "Author is required.<br>"; }
 
         $languagecode = Arg('pri_language');
-        if ( $languagecode == '' ) { $errors .= "Language is required.<br>"; }
+        if ( $languagecode == '' ) { $errors[] = "Language is required.<br>"; }
 
 //        $sec_language = Arg('sec_language');
 
@@ -168,15 +168,15 @@ class ProjectInfoHolder
 //            ? "$language with $sec_language"
 //            : $language );
 	    $projectmgr = Arg('projectmgr');
-	    if ( $this->projectmgr == '' ) { $errors .= "Project Manager is required.<br>"; }
+	    if ( $this->projectmgr == '' ) { $errors[] = "Project Manager is required.<br>"; }
 
 	    $this->projectmgr = $projectmgr;
         $this->genre = Arg('genre');
-        if ( $this->genre == '' ) { $errors .= "Genre is required.<br>"; }
+        if ( $this->genre == '' ) { $errors[] = "Genre is required.<br>"; }
 
         $this->image_source = Arg('image_source');
         if ($this->image_source == '') {
-            $errors .= "Image Source is required. If the one you want isn't in list, you can propose to add it.<br>";
+            $errors[] = "Image Source is required. If the one you want isn't in list, you can propose to add it.<br>";
             $this->image_source = '_internal';
         }
 
@@ -184,7 +184,7 @@ class ProjectInfoHolder
         if($this->pper != "") {
             /** @var DpContext $Context */
             if(! DpContext::UserExists($this->pper)) {
-                $errors .= "PPer must be an existing user - check case
+                $errors[] = "PPer must be an existing user - check case
                 and spelling of username.<br>"; 
             }
         }
@@ -192,7 +192,7 @@ class ProjectInfoHolder
         if ($this->ppverifier != '') {
             /** @var DpContext $Context */
             if(! DpContext::UserExists($this->ppverifier)) {
-                $errors .= "PPVer must be an existing user - check case
+                $errors[] = "PPVer must be an existing user - check case
                 and spelling of username.<br>"; 
             }
         }
@@ -200,7 +200,7 @@ class ProjectInfoHolder
         $this->image_preparer = Arg('image_preparer');
         if ($this->image_preparer != '') {
             if(! DpContext::UserExists($this->image_preparer)) {
-                $errors .= "Image Preparer must be an existing user - check
+                $errors[] = "Image Preparer must be an existing user - check
                 case and spelling of username.<br>";
             }
         }
@@ -208,7 +208,7 @@ class ProjectInfoHolder
         $this->text_preparer = Arg('text_preparer');
         if ($this->text_preparer != '') {
             if(! DpContext::UserExists($this->text_preparer)) {
-                $errors .= "Text Preparer must be an existing user - check case
+                $errors[] = "Text Preparer must be an existing user - check case
                 and spelling of username.<br>";
             }
         }
@@ -217,7 +217,7 @@ class ProjectInfoHolder
         if ( $this->isposted ) {
             // We are in the process of marking this project as posted.
             if ( $this->postednum == 0 ) {
-                $errors .= "Posted Number is required.<br>";
+                $errors[] = "Posted Number is required.<br>";
             }
         }
 
@@ -230,7 +230,7 @@ class ProjectInfoHolder
         // $this->original_marc_array_encd = Arg('rec');
         $this->extra_credits    = Arg('extra_credits');
 
-        return $errors;
+        return implode("<br\>", $errors);
     }
 
     // -------------------------------------------------------------------------
@@ -280,6 +280,9 @@ class ProjectInfoHolder
 
     // =========================================================================
 
+    /**
+     * @param DpProject $project
+     */
     public function show_form($project) {
         global $User;
         /** @var DpProject $project */

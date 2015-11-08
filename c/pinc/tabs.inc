@@ -1,6 +1,6 @@
 <?php
 
-include_once($relPath.'theme.inc');
+//include_once($relPath.'theme.inc');
 
 /* This file contains one function: echo_stylesheet_for_tabs() .
  *

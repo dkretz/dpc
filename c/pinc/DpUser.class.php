@@ -15,7 +15,6 @@ class DpUser
     protected $_username;
     protected $_row;
     protected $_settings;
-    protected $_userP;
 	protected $_credits;
 
     public function __construct($username = "") {
@@ -61,7 +60,7 @@ class DpUser
             assert(DpContext::UserExists($this->Username()));
 	        LogMsg("Success - create DP user $username");
         }
-
+        $this->FetchUser();
     }
 
     public function FetchUser() {
@@ -93,7 +92,10 @@ class DpUser
 	        LogMsg("FetchUser failed for $username");
             die("FetchUser failed for $username");
         }
+    }
 
+    public function Row() {
+        return $this->_row;
     }
 
     public function IsLoggedIn() {
@@ -108,6 +110,7 @@ class DpUser
         if($this->HasRole($roundid)) {
             return true;
         }
+
         switch($roundid) {
             case "P1":
 	        case "SR":
@@ -167,6 +170,9 @@ class DpUser
 		return lower($this->Username()) == lower($name);
 	}
 
+    public function MayQC() {
+        return $this->HasRole("QC") || $this->IsAdmin();
+    }
     public function MayPP() {
 	    return $this->MayWorkInRound("PP");
     }
@@ -185,6 +191,12 @@ class DpUser
             $o = new DpTeam($this->Team1());
         }
         return $o;
+    }
+
+    public function IsTeamMemberOf($id) {
+        return $this->_row['team_1'] == $id
+            or $this->_row['team_2'] == $id
+            or $this->_row['team_3'] == $id;
     }
 
     public function UserTeams() {
@@ -218,21 +230,90 @@ class DpUser
     }
 
     public function Team1() {
-        return empty($this->_row['team_1'])
-            ? 0
-            : $this->_row['team_1'];
+        return $this->_row['team_1'];
     }
 
     public function Team2() {
-        return empty($this->_row['team_2'])
-            ? 0
-            : $this->_row['team_2'];
+        return $this->_row['team_2'];
     }
 
     public function Team3() {
-        return empty($this->_row['team_3'])
-            ? 0
-            : $this->_row['team_3'];
+        return $this->_row['team_3'];
+    }
+
+    public function QuitTeamId($tid) {
+        global $dpdb;
+        $username = $this->Username();
+
+        if($this->Team3() == $tid) {
+            $dpdb->SqlExecute("
+                UPDATE users
+                SET team_3 = 0
+                WHERE username = '$username'");
+            $this->_row['team_3'] = 0;
+            return;
+        }
+        if($this->Team2() == $tid) {
+            $dpdb->SqlExecute("
+                UPDATE users
+                SET team_2 = team_3,
+                    team_3 = 0
+                WHERE username = '$username'");
+            $this->_row['team_2'] = $this->_row['team_3'];
+            $this->_row['team_3'] = 0;
+            return;
+        }
+        if($this->Team1() == $tid) {
+            $dpdb->SqlExecute("
+                UPDATE users
+                SET team_1 = team_2,
+                    team_2 = team_3,
+                    team_3 = 0
+                WHERE username = '$username'");
+            $this->_row['team_1'] = $this->_row['team_2'];
+            $this->_row['team_2'] = $this->_row['team_3'];
+            $this->_row['team_3'] = 0;
+        }
+    }
+
+    public function AddTeamId($id) {
+       if($this->Team1() == 0) {
+           $this->SetTeam(1, $id);
+       }
+       else if($this->Team2() == 0) {
+           $this->SetTeam(2, $id);
+       }
+       else if($this->Team3() == 0) {
+           $this->SetTeam(3, $id);
+       }
+    }
+
+    /**
+     * @param $index
+     * @param $id
+     */
+    private function SetTeam($index, $id) {
+        global $dpdb;
+        $username = $this->Username();
+
+        switch($index) {
+            case 1:
+                $strindex = "team_1";
+                break;
+            case 2:
+                $strindex = "team_2";
+                break;
+            case 3:
+                $strindex = "team_3";
+                break;
+            default:
+                return;
+        }
+        $sql = "UPDATE users
+                SET $strindex = ?
+                WHERE username = ?";
+        $args = array(&$id, &$username);
+        $dpdb->SqlExecutePS($sql, $args);
     }
 
     public function ClearTeam($teamnum) {
@@ -790,6 +871,10 @@ class DpUser
         return $this->_DaysAgo($this->FirstRoundTime($round_id));
     }
 
+    public function TeamCount() {
+        return count($this->Teams());
+    }
+
     public function Teams() {
         $t = array();
         if($this->Team1() != "") {
@@ -895,7 +980,11 @@ class DpUser
 class DpThisUser extends DpUser
 {
 	// if both args are missing, try for a session
-	function __construct($username = "", $password = "") {
+    /** @noinspection PhpMissingParentConstructorInspection
+     * @param string $username
+     * @param string $password
+     */
+    function __construct($username = "", $password = "") {
 		$this->_bb = new DpPhpbb3();
 
 		// Is the user in a session?
@@ -990,7 +1079,7 @@ class DpTeam
                    ut.teamname,
                    ut.team_info,
                    ut.webpage,
-                   ut.owner owner_id,
+                   ut.ownername,
                    ut.createdby,
                    ut.created,
                    FROM_UNIXTIME(ut.created) created_str,
@@ -1001,8 +1090,7 @@ class DpTeam
                    ut.icon,
                    ut.avatar,
                    ut.topic_id,
-                   ut.latestUser,
-                   uown.username ownername
+                   ut.latest_user_name
             FROM user_teams ut
             LEFT JOIN users uown ON ut.ownername = uown.username
             LEFT JOIN users ucre ON ut.createdby = ucre.username
@@ -1016,6 +1104,7 @@ class DpTeam
     public function Name() {
         return $this->TeamName();
     }
+
     public function TeamName() {
         return $this->_row["teamname"];
     }

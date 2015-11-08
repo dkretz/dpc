@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 
 $relPath='../../pinc/';
 include_once($relPath.'dpinit.php');
-include_once($relPath.'maybe_mail.inc');
+//include_once($relPath.'maybe_mail.inc');
 
 // $action is show_sources, add_source, edit_source, update_oneshot
 
@@ -58,13 +58,13 @@ $theme_args['css_data'] = "
     // die("Bad 'action': $action");
 
 
-$can_edit = $User->IsImageSourcesManager();
+$can_edit = $User->IsImageSourcesManager() || $User->IsAdmin();
 // $can_edit = user_is_image_sources_manager();
 
 switch($action) {
     case 'show_sources':
         if ( ! $can_edit) {
-            divert("");
+            redirect_to_home();
             exit;
         }
 

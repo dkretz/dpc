@@ -12,49 +12,49 @@ $tname      = ($tname == ""
                     ? "%"
                     : "%tname%");
 
+if($roundid) {
+    $where = "AND urp.phase = ?";
+    $args = array(&$roundid);
+}
+else {
+    $where = "";
+}
+
 $sql = "
-    SELECT  ut.id,
-            SUM(usercount) AS usercount, 
+        SELECT
+            ut.id,
             ut.teamname,
-            ut.icon,
-            b.page_count
-    FROM user_teams ut
-    LEFT JOIN (
-        SELECT u.team_1 AS team_id, COUNT(1) usercount FROM users u
-        WHERE u.team_1 > 0
-        GROUP BY u.team_1
+            IFNULL(u1.ucount, 0)
+            + IFNULL(u2.ucount, 0)
+            + IFNULL(u3.ucount, 0) usercount,
+        SUM(IFNULL(urp.page_count, 0)) pagecount
 
-        UNION ALL
+        FROM user_teams ut
+        LEFT JOIN (SELECT team_1, COUNT(1) ucount FROM users GROUP BY team_1) u1 ON ut.id = u1.team_1
+        LEFT JOIN (SELECT team_2, COUNT(1) ucount FROM users GROUP BY team_2) u2 ON ut.id = u2.team_2
+        LEFT JOIN (SELECT team_3, COUNT(1) ucount FROM users GROUP BY team_3) u3 ON ut.id = u3.team_3
 
-        SELECT u.team_2 AS team_id, COUNT(1) usercount FROM users u
-        WHERE u.team_2 > 0
-        GROUP BY u.team_2
+        LEFT JOIN users u ON u.team_1 = ut.id OR u.team_2 = ut.id OR u.team_3 = ut.id
+        LEFT JOIN user_round_pages urp
+            ON u.username = urp.username
+            $where
 
-        UNION ALL
+        GROUP BY ut.id";
 
-        SELECT u.team_3 AS team_id, COUNT(1) usercount FROM users u
-        WHERE u.team_3 > 0
-        GROUP BY u.team_3
-    ) AS a
-    ON ut.id = a.team_id
-    LEFT JOIN (
-        SELECT team_id, SUM(page_count) page_count
-        FROM team_round_pages 
-        GROUP BY team_id
-    ) b
-    ON ut.id = b.team_id
-    GROUP BY ut.id
-    ORDER BY page_count DESC";
-    
+if($roundid) {
+    $rows = $dpdb->SqlRowsPS($sql, $args);
 
-$rows = $dpdb->SqlRows($sql);
+}
+else {
+    $rows = $dpdb->SqlRows($sql);
+}
+
 
 $tbl = new DpTable("tblteams", "dptable sortable w75");
 // $tbl->AddColumn("^ID", "id");
-$tbl->AddColumn("^Icon", "icon", "eIcon");
 $tbl->AddColumn("<Team Name", "teamname", "eTeamname");
 $tbl->AddColumn("^Members", "usercount");
-$tbl->AddColumn(">Pages", "page_count", "eCount");
+$tbl->AddColumn(">Pages", "pagecount", "eCount");
 $tbl->AddColumn("^", "id", "eJoin");
 $tbl->SetRows($rows);
 
@@ -86,14 +86,17 @@ function eCount($count) {
 
 function eJoin($id) {
     global $User;
-    if($User->Team1() ==  $id || $User->Team2() == $id || $User->Team3() == $id) {
-        $quit = _("Quit");
-        return "<a href='../members/jointeam.php?tid={$id}'>$quit</a>\n";
-    }
-    else {
-        $join = _("Join");
-        return "<a href='../members/jointeam.php?tid={$id}'>$join</a>\n";
-    }
+        return $User->IsTeamMemberOf($id)
+            ? link_to_quit_team($id)
+            : link_to_join_team($id);
+//    if($User->Team1() ==  $id || $User->Team2() == $id || $User->Team3() == $id) {
+//        $quit = _("Quit");
+//        return "<a href='../teams/jointeam.php?tid={$id}'>$quit</a>\n";
+//    }
+//    else {
+//        $join = _("Join");
+//        return "<a href='../teams/jointeam.php?tid={$id}'>$join</a>\n";
+//    }
 }
             
 

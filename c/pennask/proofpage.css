@@ -354,7 +354,7 @@ table.tblpicker th {
 
     span.spacey {
         color: pink;
-        background-color: red;
+        background-color: lightpink;
     }
     span.accepted {
         border: 1px dotted black;
@@ -378,8 +378,9 @@ table.tblpicker th {
         color: #FFC7D7;
     }
 
-    span.wcs { border: 2px dotted green;
-        margin: -2px;
+    span.wcs {
+        border: 1px dashed green;
+        margin: -1px;
     }
 
     span.wcb { border: 2px solid red;

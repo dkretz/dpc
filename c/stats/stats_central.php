@@ -126,10 +126,6 @@ echo "
                                 . _("Most Requested Books") . "</a>");
 
     $rows[] = array(
-        "col01" => "<a href='user_logon_stats.php'>" . _("User Logon Stats") . "</a>",
-        "col02" => "<a href='pm_stats.php'>" . _("Project Management Stats") . "</a>");
-
-    $rows[] = array(
         "col01" => "<a href='pp_stats.php'>" . _("Post-Processing Stats") . "</a>",
         "col02" => "<a href='ppv_stats.php'>" . _("Post-Processing Verification Stats") . "</a>");
 
