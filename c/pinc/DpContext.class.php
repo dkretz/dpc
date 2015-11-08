@@ -28,7 +28,7 @@ class DpContext {
 	private function init_phases() {
 		global $dpdb;
 		$rows = $dpdb->SqlRows( "
-            SELECT phase, sequence, description, round_id, caption, round_sequence, default_state
+            SELECT phase, sequence, description, round_id, caption, round_sequence, default_state, forum_id
             FROM phases
             ORDER BY sequence" );
 		$this->_phases    = array();
@@ -524,6 +524,7 @@ class DpContext {
                     task = 'LOAD',
                     state = 'C',
                     version_time = UNIX_TIMESTAMP(),
+                    dateval = CURRENT_DATE(),
                     crc32 = ?,
                     textlen = ?";
 
@@ -565,7 +566,9 @@ class DpContext {
 			SET crc32 = ?,
 			textlen = ?,
 			username = ?,
-			state = ?
+			state = ?,
+			version_time = UNIX_TIMESTAMP(),
+			dateval = CURRENT_DATE()
 			WHERE projectid = ?
 				AND pagename = ?
 				AND version = ?
@@ -590,10 +593,18 @@ class DpContext {
 	    return $usr->EmailAddress();
     }
 
-    public function CreateForumThread($subject, $message, $poster_name = "") {
+    public function CreateForumThread($subject, $message, $poster) {
         $bb = $this->Bb();
         /** @var DpPhpbb3 $bb  */
-        return $bb->CreateTopic($subject, $message, $poster_name);
+        return $bb->CreateTopic($subject, $message, $poster);
+    }
+
+	public function MoveTopicToPhaseForum($topicid, $phasename) {
+        $bb = $this->Bb();
+//        $f = $this->_phases[$phasename];
+        $forumid = $this->_phases[$phasename]->ForumId();
+        /** @var DpPhpbb3 $bb  */
+        $bb->MoveTopicForumId($topicid, $forumid);
     }
 
     public function InstalledLanguages() {
@@ -673,6 +684,9 @@ class Phase
 	public function Caption() {
 		return $this->_row['caption'];
 	}
+    public function ForumId() {
+        return $this->_row['forum_id'];
+    }
 }
 class Round
 {
