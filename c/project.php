@@ -8,7 +8,6 @@ include_once($relPath.'dpinit.php');
 include_once($relPath.'rounds.php');
 include_once($relPath.'RoundsInfo.php');
 include_once 'pt.inc'; // echo_page_table
-include_once($relPath.'smoothread.inc');           // functions for smoothreading
 
 $User->IsLoggedIn()
 	or RedirectToLogin();
@@ -36,7 +35,15 @@ $is_proofers            = IsArg("proofers");
 $linktotopic            = Arg("linktotopic");
 $srdays                 = Arg("srdays");
 $issrtime               = IsArg("submitSRtime");
+$sr_commit				= IsArg("sr_commit");
+$sr_withdraw			= IsArg("sr_withdraw");
 
+if($sr_commit) {
+	$project->UserSmoothreadCommit();
+}
+if($sr_withdraw) {
+	$project->UserSmoothreadWithdraw();
+}
 if($issrtime && intval($srdays) >= 0) {
     $project->SetSmoothDeadlineDays($srdays);
 }
@@ -341,7 +348,6 @@ function top_bottom_status($project) {
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 function project_info_table($project, $level) {
-    global $code_url;
     global $User;
 
     /** @var DpProject $project */
@@ -448,25 +454,23 @@ function project_info_table($project, $level) {
 //             SELECT id FROM notify
 //             WHERE projectid = '$projectid'
 //                 AND username = '$username'");
-    if (! $project->IsUserProjectNotify()) {
-        $status = _("Click to register for email notification
-        when this is posted.");
-        $url = "$code_url/tools/proofers/posted_notice.php" 
-                                            ."?projectid=$projectid"
-                                            ."&amp;setclear=set";
+    if (! $project->IsPublishUserNotify()) {
+        $caption = _("Click to be notified by email when this project is posted to FadedPage.");
+        $link = link_to_notify($username, $projectid, $caption, "set");
     }
     else {
-        $status = _("<p>You ($username) are registered to be notified by email
-        when this project has been posted.</p>
+        $caption = _("<p>You ($username) are registered to be notified by email
+        when this project has been posted to FadedPage.</p>
         <p>Click here to cancel your registration.</p>");
-        $url = "$code_url/tools/proofers/posted_notice.php" 
-                                            ."?projectid=$projectid"
-                                            ."&amp;setclear=clear";
+        $link = link_to_notify($username, $projectid, $caption, "clear");
+//        $link = "$code_url/tools/proofers/posted_notice.php"
+//                                            ."?projectid=$projectid"
+//                                            ."&amp;setclear=clear";
     }
 
     // ------------------------------------------------------------
 
-    echo_row_left_right( _("Book Completion:"), "<a href='$url'>$status</a>" );
+    echo_row_left_right( _("Book Completion:"), $link);
 
     // -------------------------------------------------------------------------
     // Post Comments
@@ -877,7 +881,7 @@ function offer_post_downloads($project, $export_roundid, $level) {
 
 			echo_download_image_zip($project, _("Download Zipped Images"));
 			if ($project->Phase() == "PP") {
-				echo_download_pp_zip($project, _("Download Zipped Text"), '' );
+				echo_download_pp_zip($project, _("Download Zipped Text") );
 
 				echo "<li>";
 					echo_uploaded_zips($project, '_first_in_prog_', _('partially post-processed'));
@@ -885,7 +889,7 @@ function offer_post_downloads($project, $export_roundid, $level) {
 			}
 
 			else if ($project->Phase() == "PPV") {
-				echo_download_ppv_zip($project, _("Download Zipped PP Text"), '_second' );
+				echo_download_ppv_zip($project, _("Download Zipped PP Text") );
 				echo "<li>";
 				echo_uploaded_zips($project, '_second_in_prog_', _('partially verified'));
 				echo "</li>";
@@ -1076,11 +1080,33 @@ function solicit_postcomments($project, $level) {
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+/*
+function sr_echo_commitment_form($projectid) {
+	$button_text = _("Commit to SR");
+
+    echo "
+    <li>
+    <form name='sr' method='POST'>
+        <input type='hidden' name='projectid' value='$projectid'>
+        "._("You may indicate your commitment to smoothread this project by pressing:")."
+        <input type='submit' name='sr_commit' value='$button_text'>
+    </form>
+    </li>\n";
+}
+*/
+
+function sr_echo_withdrawal_form($projectid) {
+	$button_text = _("Withdraw SR commitment");
+
+	echo "
+    <form name='sr' method='POST'>
+        <input type='hidden' name='projectid' value='$projectid'>
+        <input type='submit' name='sr_withdraw' value='$button_text'>
+    </form>\n";
+}
 // pm uploads file named "{projectid}_smooth_avail"
 function solicit_smooth_reading($project) {
     global $User;
-
-    $username = $User->Username();
 
     /** @var DpProject $project */
     if ( $project->Phase() != "PP" && $User->IsSiteManager() == false )
@@ -1093,7 +1119,7 @@ function solicit_smooth_reading($project) {
     <h4>", _('Smooth Reading'), "</h4>
     <ul class='clean'>\n";
     if($project->IsAvailableForSmoothReading() || $User->IsSiteManager()) {
-        echo _("<li>This project is scheduled to be available for smooth reading
+        echo _("<li>This project is available for smooth reading
 				until <b>{$project->SmoothReadDate()}</b>.</li>\n");
         if(! $project->IsSmoothDownloadFile()) {
             echo _("<li>But there is no file uploaded to read yet.</li>\n");
@@ -1109,18 +1135,27 @@ function solicit_smooth_reading($project) {
         // The upload does not cause the project to change state --
         // it's still checked out to PPer.
 
-        if (!sr_user_is_committed($projectid, $username)) {
-            echo _('<li>You may indicate your commitment
-                to smoothread this project by pressing:');
-            sr_echo_commitment_form($projectid);
-            echo "</li>\n";
+		if(! $project->UserIsCommittedToSmoothread()) {
+            $button_text = _("Commit to SR");
+            echo "
+            <li>
+            <form name='sr' method='POST'>
+                <input type='hidden' name='projectid' value='$projectid'>
+                "._("You may indicate your commitment to smoothread this project by pressing:")."
+                <input type='submit' name='sr_commit' value='$button_text'>
+            </form>
+            </li>\n";
         }
         else {
-            echo _(
-                '<li>You have committed to smoothread this project.
-                If you want to withdraw your commitment, please press:');
-            sr_echo_withdrawal_form($projectid);
-            echo "</li>";
+            $button_text = _("Withdraw SR commitment");
+            echo "
+            <li>
+            <form name='sr' method='POST'>
+                <input type='hidden' name='projectid' value='$projectid'>
+                "._("You have committed to smoothread this project. To withdraw your commitment, please press:")."
+                <input type='submit' name='sr_withdraw' value='$button_text'>
+            </form>
+            </li>\n";
         }
 
         if($project->IsSmoothDownloadFile()) {
@@ -1147,7 +1182,7 @@ function solicit_smooth_reading($project) {
             . link_to_upload_text_to_smooth($projectid, "Upload a file for smooth-reading (new or replacement)")
             ."</li>\n";
 
-        $sr_list = sr_get_committed_users($projectid);
+        $sr_list = $project->CommittedSmoothReaders();
 
         if (! count($sr_list) ) {
             echo _('<li>No one has committed to smoothread this project.</li>');
