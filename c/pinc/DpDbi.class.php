@@ -60,6 +60,10 @@ class DpDb
         return $this->_result;
     }
 
+    public function EscapeString($str) {
+        return $this->_mysqli->real_escape_string($str);
+    }
+
     // identity value created by insertion
     public function InsertId() {
         return $this->_mysqli->insert_id;
@@ -239,6 +243,18 @@ class DpDb
         return $row;
     }
 
+    public function SqlValuesPS($sql, $args) {
+        $rows = $this->SqlRowsPS($sql, $args);
+        if(! $rows || count($rows) < 1) {
+            return array();
+        }
+        $ary = array();
+        foreach($rows as $row) {
+            $ary[] = current($row);
+        }
+        return $ary;
+    }
+
     public function SqlValues($sql) {
         $objects = array();
         $result = $this->sql_select($sql);      
@@ -390,7 +406,7 @@ class DpDb
         return ($colname != "");
     }
 
-    public function Log($text) {
+    private function Log($text) {
         global $User;
         if(! $this->_mysqli) {
             assert(false);

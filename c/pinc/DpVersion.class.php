@@ -4,6 +4,20 @@
  * User: don
  * Date: 8/8/2015
  * Time: 8:50 PM
+ * @param $projectid String
+ * @param $pagename String
+ * @return array
+ */
+
+/*
+ * Creating a new Version
+ *
+ * When a project moves into a new Phase, a set of Versions is created with state "A" and task "PROOF" or "FORMAT".
+ * While a project is in a Phase, some Pages can have Versions for that Phase. Not required.
+ * A Version can be preempted but only if it's Available. But then the preempting Version becomes active (state
+ * "A" or "O"). Only one Version max can be Active.
+ * Pages could have a queue of proto-Versions to be instantiated when the page gets to that Phase.
+ * Pre-empting could put the available Version back at the front of the queue and take its Version Number.
  */
 
 function Versions($projectid, $pagename) {
@@ -34,6 +48,7 @@ function Versions($projectid, $pagename) {
 class DpRowVersion extends DpVersion {
 	function __construct($row) {
 		$this->_row = $row;
+		parent::__construct($row["projectid"], $row["pagename"], $row["version"]);
 	}
 }
 
@@ -157,196 +172,42 @@ class DpVersion {
 		$args = array(&$username, &$projectid, &$pagename, &$version);
 		return $dpdb->SqlExecutePS($sql, $args);
 	}
-//	public function SaveVersionTemp($text) {
-//		return $this->SaveTextState($text, "O");
-//	}
-//	public function SaveVersionComplete($text) {
-//		return $this->SaveTextState($text, "C");
-//	}
-
-//	public  function SaveTextState($text, $state) {
-//		global $dpdb;
-//		$projectid = $this->ProjectId();
-//		$pagename = $this->PageName();
-//		$version = $this->Version();
-//		$crc32 = crc32($text);
-//		$textlen = mb_strlen($text);
-//
-//		$sql = "UPDATE page_versions
-//				SET crc32 = ?,
-//					textlen = ?,
-//					state = ?,
-//					version_time = UNIX_TIMESTAMP()
-//				WHERE projectid = ?
-//					AND pagename = ?
-//					AND version = ?";
-//		$args = array(&$crc32, &$textlen, &$state, &$projectid, &$pagename, &$version);
-//		$dpdb->SqlExecutePS($sql, $args);
-//		$ret = $this->UpdateText($text);
-//		return $ret;
-//	}
-
-//	public function ReturnToRound() {
-//		global $dpdb;
-//		$projectid = $this->ProjectId();
-//		$pagename = $this->PageName();
-//		$version = $this->Version();
-//
-//		$sql = "UPDATE page_versions
-//				SET state = 'A',
-//					username = NULL,
-//					version_time = UNIX_TIMESTAMP()
-//				WHERE projectid = ?
-//					AND pagename = ?
-//					AND version = ?";
-//		$args = array(&$projectid, &$pagename, &$version);
-//		return $dpdb->SqlExecutePS($sql, $args);
-//
-//	}
 
 	public function Path() {
 		return PageVersionPath($this->ProjectId(), $this->PageName(), $this->Version());
 
 	}
-//	public function UpdateText($text) {
-//		$path = PageVersionPath($this->ProjectId(), $this->PageName(), $this->Version());
-//		assert(file_exists($path));
-//		return file_put_contents($path, norm($text));
-//
-//	}
 
-	/*
-	private function AddVersionRow($phase, $task, $state) {
-		global $dpdb, $User;
-		$projectid  = $this->ProjectId();
-		$pagename   = $this->PageName();
-		$version    = $this->Version();
-		$username   = $User->Username();
-
-		$sql = "INSERT INTO page_versions
-                    SET projectid = ?,
-                    	pagename = ?,
-                    	version = ?,
-                    	phase = ?,
-                    	task = ?,
-                    	username = ?,
-                    	version_time = UNIX_TIMESTAMP(),
-                    	state = ?";
-
-		$args = array( &$projectid, &$pagename, &$version, &$phase, &$task, &$username, &$state );
-		$ret  = $dpdb->SqlExecutePS( $sql, $args );
-		assert( $ret == 1 );
-		return $ret;
-	}
-	*/
-
-//	private function NextVersionNumber() {
-//		return $this->LastVersionNumber() + 1;
-//	}
-
-//	static public function LastVersionRow($projectid, $pagename) {
-//		global $dpdb;
-//		$version = Versions::LastVersionNumber($projectid, $pagename);
-//		if($version < 0) {
-//			return array();
-//		}
-//		$row = $dpdb->SqlOneRow( "SELECT projectid, pagename,
-//									IFNULL($version, -1) version,
-//									 state, username, phase, task,
-//									 version_time, FROM_UNIXTIME(version_time) strtime
-//								 FROM page_last_versions
-//								 WHERE projectid = '$projectid' AND pagename = '$pagename'" );
-//
-//		return $row;
-//	}
-
-	/**
-	 * @param string $phase
-	 * @param string $task
-	 * @param string $state
-	 * @param string/null $text
-	 *
-	 * @return DpVersion
-	 */
-/*
-	public function AddPageVersion($phase, $task, $state = "A", $text = null) {
-
-		$nextversion = $this->NextVersionNumber();
-		$this->AddVersionRow( $phase, $task, $state, $nextversion );
-		if($text === null) {
-			$text = $this->Text();
-		}
-		$n = $this->SetVersionText( $nextversion, $text );
-		return $n;
-
-	}
-*/
-
-//	static public function CopyLastVersionAhead($projectid, $pagename) {
-//		$text = Versions::LastVersionText($projectid, $pagename);
-//		Versions::AddVersionText($projectid, $pagename, $text);
-//	}
-
-	/*
-	private function SetVersionText($version, $text) {
-		$projectid = $this->ProjectId();
-		$pagename  = $this->PageName();
-		$vpath = PageVersionPath($projectid, $pagename, $version);
-		EnsureWriteableDirectory(dirname($vpath));
-		return file_put_contents($vpath, $text);
-	}
-	*/
-
-//	static public function VersionPageTextPath($projectid, $pagename) {
-//		$path = build_path(ProjectPath($projectid), "text");
-//		return build_path($path, $pagename);
-//	}
-
-//	static public function VersionPath($projectid, $pagename, $version) {
-//		$path = Versions::VersionPageTextPath($projectid, $pagename);
-//		return build_path($path, "$pagename,$version");
-//	}
-
-	// don't update if there's no change in state
-//	static public function UpdateLastPageVersion($projectid, $pagename, $state, $text = null) {
-//		global $dpdb;
-//		$version = Versions::LastVersionNumber($projectid, $pagename);
-//		$sql = "UPDATE page_versions
-//				SET state = ?
-//				WHERE projectid = ?
-//					AND pagename = ?
-//					AND version = ?
-//					AND state != ?";
-//		$args = array(&$state, &$projectid, &$pagename, &$version, &$state);
-//		$ret = $dpdb->SqlExecutePS($sql, $args);
-//		if($ret && $text !== null) {
-//			$ret = Versions::UpdateVersionText($projectid, $pagename, $version, $text);
-//		}
-//		return $ret;
-//	}
-
-	/*
-	public function Text() {
-		return $this->VersionText($this->Version());
-//		$projectid = $this->ProjectId();
-//		$pagename  = $this->PageName();
-//		$version   = $this->Version();
-//		$path = PageVersionPath($projectid, $pagename, $version);
-//		assert(file_exists($path));
-//		return file_get_contents($path);
-	}
-	*/
-
-//	public function PreviousText() {
-//		return $this->VersionText($this->Version()-1);
-//	}
 
 	public function VersionText() {
-//		global $Context;
 		$projectid = $this->ProjectId();
 		$pagename  = $this->PageName();
 		$version   = $this->VersionNumber();
 		return PageVersionText($projectid, $pagename, $version);
+	}
+
+	public function FixNormalize() {
+        global $dpdb;
+		$text = $this->VersionText();
+		$text2 = norm($text);
+		if($text == $text2) {
+			return false;
+		}
+		file_put_contents($this->Path(), $text2);
+        $projectid = $this->ProjectId();
+        $pagename = $this->PageName();
+        $vnum = $this->VersionNumber();
+        $crc = crc32($text2);
+        $textlen = mb_strlen($text2);
+        $sql = "UPDATE page_versions
+				SET crc32 = ?,
+				    textlen = ?
+				WHERE projectid = ?
+				AND pagename = ?
+				AND version = ?";
+        $args = array(&$crc, &$textlen, &$projectid, &$pagename, &$vnum);
+        $dpdb->SqlExecutePS($sql, $args);
+        return true;
 	}
 }
 

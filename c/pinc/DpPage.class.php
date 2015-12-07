@@ -17,7 +17,6 @@ require_once $relPath . "DpVersion.class.php";
 
 define("PAGE_AVAIL", "page_avail");
 define("PAGE_OUT",   "page_out");
-//define("PAGE_TEMP",  "page_temp");
 define("PAGE_SAVED", "page_saved");
 define("PAGE_BAD",   "page_bad");
 
@@ -28,7 +27,8 @@ class DpPage
     protected   $_pagename;
     protected   $_project;
 	protected   $_versions;
-	protected   $_version;
+    /** @var  $_last_version DpVersion */
+	protected   $_last_version;
 
     function __construct($projectid, $pagename) {
         global $dpdb;
@@ -36,57 +36,11 @@ class DpPage
             die( "Projectid argument omitted in DpPage." ) ;
         }
         $this->_projectid   = $projectid;
-        // $this->_pagename = imagefile_to_pagename($filename);
         $this->_pagename = $pagename;
         if(! $this->_pagename) {
             die( "pagename argument omitted in DpPage ($projectid $pagename)" ) ;
         }
-	    $this->_row = $dpdb->SqlOneRow(
-		    "SELECT pg.projectid,
- 					pg.pagename,
- 					pg.imagefile,
- 					pv.version last_version,
- 					pv.phase,
- 					pv.version_time,
- 					pv.state,
- 					pv.username,
-					puv.version penultimate_version,
- 					puv.phase penultimate_phase,
- 					puv.version_time penultimate_version_time,
- 					puv.state penultimate_state,
- 					puv.username penultimate_username
-		    FROM pages pg
-		    JOIN projects p
-		    	ON pg.projectid = p.projectid
-		    JOIN page_last_versions pv
-		    	ON pg.projectid = pv.projectid
-		    	AND pg.pagename = pv.pagename
-		    LEFT JOIN page_versions puv
-		    	ON pv.projectid = puv.projectid
-		    	AND pv.pagename = puv.pagename
-		    	AND pv.version > puv.version
-		    LEFT JOIN page_versions pv0
-		    	ON pv.projectid = puv.projectid
-		    	AND pv.pagename = puv.pagename
-		    	AND pv.version > pv0.version
-		    	AND puv.version < pv0.version
-			WHERE pg.projectid = '$projectid'
-				AND pg.pagename = '$pagename'
-				AND pv0.id IS NULL");
-//	    )
-
-//	    $this->_version = new DpVersion($this->ProjectId(), $this->PageName(), $this->_row['last_version']);
-
-	    /*
-	     *  change following to : $this->_refresh_row();
-	     */
-
-//        if($dpdb->IsTable($projectid)) {
-//            $this->_refresh_row();
-//        }
-//        else {
-//            $this->_row = null;
-//        }
+	    $this->_row = $dpdb->SqlOneRow(sql_project_page($projectid, $pagename));
     }
 
     private function _refresh_row() {
@@ -141,11 +95,6 @@ class DpPage
         return $this->ProjectManager();
     }
 
-/*
-    public function IsLanguageCode($code) {
-        return in_array($code, $this->LanguageCodeArray());
-    }
-*/
     public function LanguageCode() {
         $p = $this->project();
         return $p->LanguageCode();
@@ -154,62 +103,6 @@ class DpPage
     public function RevertToTemp() {
         $this->_refresh_row();
     }
-
-	/*
-    public function RevertToOriginal() {
-        global $dpdb;
-	    global $User;
-
-		if(! $this->ActiveUserIsEditor() && ! $this->UserIsPM() && ! $User->IsSiteManager()) {
-            assert(false);
-            return;
-        }
-        $projectid  = $this->_projectid;
-        $roundid    = $this->RoundId();
-        $pagename   = $this->PageName();
-        $textfld    = $this->TextField();
-        $from_textfld    = TextFieldForRoundId(PreviousRoundIdForRoundId($this->RoundId()));
-        $timefld    = $this->TimeField();
-        $state      = $roundid . "." . PAGE_OUT;
-        $sql = "
-            UPDATE $projectid
-            SET ? = ?,
-                $timefld = NULL,
-                state = ?
-            WHERE pagename = '$pagename'";
-        $args = array(&$textfld, &$from_textfld, &$state);
-        $dpdb->SqlExecutePS($sql, $args);
-        $this->_refresh_row();
-        $this->RecalcProjectPageCounts();
-        // $this->LogPageEvent(PG_EVT_REVERT);
-        // dp code doesn't log reverts
-    }
-
-
-    public function ReplaceTextPrevious($text) {
-        global $dpdb;
-
-        // strip off blank lines at end
-        $idx = $this->ActiveRoundIndex();
-        if($idx <= 0) {
-            assert(false);
-            return;
-        }
-        $text = preg_replace("/\t/us", "    ", $text);
-        $text = preg_replace("/ +?$/m", "", $text);
-        $text = preg_replace("/[\n\r\s]+\Z/m", "", $text);
-        $projectid = $this->ProjectId();
-        $pagename = $this->PageName();
-        $textfld = TextFieldForRoundIndex($idx - 1);
-        
-        $dpdb->SqlExecute("
-            UPDATE $projectid
-            SET $textfld = '$text'
-            WHERE pagename = '$pagename'");
-
-        // $this->LogPageEvent(PG_EVT_REPLACE_TEXT);
-    }
-    */
 
     public function CanBeReverted() {
         return $this->IsSaved();
@@ -227,19 +120,10 @@ class DpPage
 
     public function PageStatus() {
 	    return $this->State();
-//        if(! isset($this->_row['page_state'])) {
-//            return "";
-//        }
-//        $ary = preg_split("/\./", $this->_row['page_state']);
-//        if(count($ary) < 2) {
-//            return "";
-//        }
-//        return $ary[1];
     }
 
     public function PageState() {
 	    return $this->Version()->State();
-//        return $this->RoundState();
     }
     public function RoundState() {
         return $this->PageRoundState();
@@ -249,11 +133,6 @@ class DpPage
         return sprintf("%s.%s", 
                 $this->RoundId(), $this->PageStatus());
     }
-
-//    public function ProjectRoundState() {
-//        $p = $this->project();
-//        return $p->State();
-//    }
 
     protected function project() {
         if(!$this->_project) {
@@ -318,34 +197,7 @@ class DpPage
     protected function PrevUser() {
 	    $index = $this->LastVersionNumber();
 	    return $this->Version($index-1)->Username();
-//        $idx = RoundIndexForId($this->RoundId());
-//        if($idx <= 0)
-//            return "";
-//        return $this->RoundUser(RoundIdForIndex($idx-1));
     }
-
-//    public function PrevText() {
-//	    return $this->LastVersion()->PreviousText();
-//        switch($this->Phase()) {
-//            case "PREP":
-//            case "P1":
-//                return $this->PhaseText("PREP");
-//            case "P2":
-//                return $this->PhaseText("P1");
-//            case "P3":
-//                return $this->PhaseText("P2");
-//            case "F1":
-//                return $this->PhaseText("P3");
-//            case "F2":
-//                return $this->PhaseText("F1");
-//            default:
-//                return $this->PhaseText("F2");
-//        }
-//        $idx = RoundIndexForId($this->RoundId());
-//        if($idx <= 0)
-//            return "";
-//        return $this->RoundText(RoundIdForIndex($idx-1));
-//    }
 
 	public function RoundText($roundid) {
 		return $this->PhaseText($roundid);
@@ -355,12 +207,6 @@ class DpPage
 
 	    $projectid = $this->ProjectId();
 	    $pagename = $this->PageName();
-//	    $sql = "
-//	        SELECT version FROM page_versions
-//	        WHERE projectid = '$projectid'
-//	        AND pagename = '$pagename'
-//	        AND phase = '$phase'";
-//		$version = $dpdb->SqlOneValue($sql);
 		$vnum = $this->PhaseVersionNumber($phase);
 		return PageVersionText($projectid, $pagename, $vnum);
     }
@@ -369,7 +215,7 @@ class DpPage
 
 		$projectid = $this->ProjectId();
 		$pagename = $this->PageName();
-		$version = $this->PhaseVersion($phase) - 1;
+		$version = $this->PhaseVersionNumber($phase) - 1;
 		if($version < 0) {
 			return "";
 		}
@@ -380,51 +226,8 @@ class DpPage
         return $this->ActiveText();
     }
 
-	/*
-    private function CopyTextForward() {
-        global $dpdb;
-        $projectid = $this->ProjectId();
-
-        $from = TextFieldForPhase($this->PrevPhase());
-//        $from = TextFieldForRoundId($this->PrevRoundId());
-        $to = TextFieldForPhase($this->Phase());
-//        $to   = TextFieldForRoundId($this->RoundId());
-        $dpdb->SqlExecute("
-            UPDATE projects
-            SET $to = $from
-            WHERE projectid = '$projectid'");
-        $this->_refresh_row();
-    }
-	*/
-
     public function ActiveText() {
 	    return $this->LastVersionText();
-//	    return $this->LastVersion()->Text();
-//        $phase = $this->Phase();
-//        $text = $this->PhaseText($phase);
-//        if($text == "") {
-//            $text = $this->PrevText();
-//            if($text != "") {
-//                $this->CopyTextForward();
-//            }
-//        }
-//        return $text;
-
-//        switch($this->PageStatus()) {
-//            case PAGE_TEMP:
-//            case PAGE_SAVED:
-//                $rtntext = $this->RoundText($roundid);
-//                break;
-//            case PAGE_AVAIL:
-//            case PAGE_OUT:
-//            case PAGE_BAD:
-//                $rtntext = $this->RoundText($prevroundid);
-//                break;
-//            default:
-//                die("Status error: ".$this->PageStatus()
-//                ." in ActiveText() page ".$this->PageName());
-//        }
-//        return $rtntext;
     }
 
     public function ActiveHtmlText() {
@@ -438,19 +241,6 @@ class DpPage
     private function ActiveRoundIndex() {
         return RoundIndexForId($this->RoundId());
     }
-
-/*
-    public function TextLines() {
-        if(! $this->_lines) {
-            $this->_lines = text_lines($this->ActiveText());
-        }
-        return $this->_lines;
-    }
-
-    public function LineCount() {
-        return count($this->TextLines());
-    }
-*/
 
     public function NameOfWork() {
         $p = $this->project();
@@ -508,69 +298,6 @@ class DpPage
     public function PageName() {
         return $this->_pagename;
     }
-//    public function MakeThumbnail() {
-//        //'find' the source image
-//        assert(file_exists($this->ImageFilePath()));
-//        $src_img = ImageCreateFrompng($this->ImageFilePath());
-//
-//        //Get original image width and height
-//        $src_width = imagesx($src_img);
-//        $src_height = imagesy($src_img);
-//
-//        //Our target output width
-//        //(image will scale down completely to this width)
-//        $dest_width = 125;
-//
-//        //Calculate our output height proportionally
-//        $dest_height = $src_height * $dest_width / $src_width;
-//
-//        // create a shell image
-//        $dest_img = imagecreate($dest_width, $dest_height);
-//
-//        imagecopyresampled($dest_img, $src_img,
-//                            0, 0, 0 ,0,
-//                            $dest_width, $dest_height,
-//                            $src_width, $src_height);
-//
-//        //write it out
-//        imagepng($dest_img, $this->ThumbFilePath());
-//
-//        //clean up memory
-//        imagedestroy($src_img);
-//        imagedestroy($dest_img);
-//    }
-//
-//    public function ThumbExists() {
-//        $path = $this->ThumbFilePath();
-//        return file_exists($path);
-//    }
-
-//    public function IsThumb() {
-//        return substr($this->_path, 0, 5) === "thumb";
-//    }
-//
-//    public function ThumbFileName() {
-//        return "thumb.".$this->PageName().".png";
-//    }
-//
-//    // url to thumbnail, optional to create if necessary
-//    public function ThumbFilePath($ismake = false) {
-//        $path = build_path($this->PagePath(), $this->ThumbFileName());
-//        if((! file_exists($path)) && $ismake)
-//            $this->MakeThumbnail();
-//        return $path;
-//    }
-//
-//    public function ThumbUrl($ismake = false) {
-//        global $projects_url;
-//        if(! $this->ThumbExists() && $ismake)
-//            $this->MakeThumbnail();
-//
-//        return $projects_url
-//            ."/".$this->ProjectId()
-//            ."/".$this->PageName()
-//            ."/".$this->ThumbFileName();
-//    }
 
     public function ProjectComments() {
         $p = $this->project();
@@ -615,7 +342,6 @@ class DpPage
 		// log it before the image is erased
 		$this->LogDelete();
 		$this->_refresh_row();
-		// $this->LogPageEvent(PG_EVT_DELETE);
 	}
 
     
@@ -628,22 +354,24 @@ class DpPage
         $username   = $User->Username();
         $phase      = $this->Phase();
 
-        $sql = "
-            UPDATE page_versions
-            SET username = ?,
-                version_time = UNIX_TIMESTAMP(),
-                state = 'O'
-            WHERE projectid = ?
-             	AND pagename = ?
-             	AND phase = ?";
+        // did the user save the most recent version?
+        if($this->ActiveUserIsEditor() || $this->IsAvailable() ) {
+            $sql = "
+                UPDATE page_versions
+                SET username = ?,
+                    version_time = UNIX_TIMESTAMP(),
+                    state = 'O'
+                WHERE projectid = ?
+                    AND pagename = ?
+                    AND phase = ?";
 
-	    $args = array(&$username, &$projectid, &$pagename, &$phase);
-        $nrecs = $dpdb->SqlExecutePS( $sql, $args );
-        $this->RecalcProjectPageCounts();
-        $this->_refresh_row();
-	    assert($this->State() == "O");
-	    $this->LogCheckOut();
-	    return $nrecs;
+            $args = array(&$username, &$projectid, &$pagename, &$phase);
+            $dpdb->SqlExecutePS($sql, $args);
+            $this->RecalcProjectPageCounts();
+            $this->_refresh_row();
+            assert($this->State() == "O");
+            $this->LogCheckOut();
+        }
     }
 
     protected function TimeField() {
@@ -656,102 +384,28 @@ class DpPage
         return TextFieldForRoundId($this->RoundId());
     }
 
-    // Resume - only used to continue my own uncompleted page.
-    // probably only DPItaly if at all
-	/*
-    public function ResumePage() {
-        global $dpdb;
-	    global $User;
-
-		if(! $this->ActiveUserIsEditor() && ! $this->UserIsPM() && ! $User->IsSiteManager()) {
-            assert(false);
-            return;
-        }
-
-//        if( ! $this->IsSaved()) {
-//            return;
-//        }
-        // if already out, just update the timestamp and drop an event
-
-        $projectid  = $this->ProjectId();
-        $pagename = $this->PageName();
-        $timefield  = $this->TimeField();
-        $roundid    = $this->RoundId();
-        $outstate   = $roundid . "." . PAGE_OUT;
-
-        $sql = "
-                UPDATE $projectid
-                SET $timefield = UNIX_TIMESTAMP(),
-                    state = '$outstate'
-                WHERE pagename = '$pagename'";
-        $dpdb->SqlExecute($sql);
-        $this->LogReOpen();
-        $this->_refresh_row();
-        $this->RecalcProjectPageCounts();
-    }
-	*/
-
     public function SaveText($text) {
 	    global $Context;
 	    return $Context->UpdateVersion($this->ProjectId(), $this->PageName(), $this->LastVersionNumber(), "O", $text);
-//	    global $Context;
-//	    $text = norm($text);
-//	    $projectid = $this->ProjectId();
-//	    $pagename  = $this->PageName();
-//	    $version = $this->LastVersionNumber();
-//
-//	    $ret = $Context->PutPageVersionText( $projectid, $pagename, $version, $text );
-//	    $this->Project()->MaybeAdvanceRound();
-//	    return $ret;
     }
 
     public function SaveTemp($text) {
 	    return $this->SaveText($text);
 	}
-//	    return $this->Version()->UpdateText($text);
-//        global $User;
-//        global $dpdb;
-//
-//        $projectid = $this->ProjectId();
-//        $pagename  = $this->PageName();
-//        $username  = $User->UserName();
-//	    $phase     = $this->Phase();
-//
-//	    $text = rtrim($text);
-//        $text = preg_replace("/\t/us", "    ", $text);
-//        $text = preg_replace("/ +?$/sm", "", $text);
-//        $text = preg_replace("/\s*[\n\r]+\Z/m", "", $text);
-//
-//		$sql = "UPDATE page_versions
-//				SET text = ?,
-//				version_time = UNIX_TIMESTAMP()
-//				WHERE projectid = ?
-//					AND pagename = ?
-//					AND phase = ?
-//					AND username = ?
-//					AND state = 'O'";
-//	    $args = array(&$text, &$projectid, &$pagename, &$phase, &$username);
-//	    assert($ret = $dpdb->SqlExecutePS($sql, $args) == 1);
-//
-//        $this->LogSaveAsInProgress();
-//        $this->RecalcProjectPageCounts();
-//        $this->_refresh_row();
-//        return $ret;
-//    }
 
 	public function LastVersion() {
-		assert($this->_version);
-		return $this->_version;
+        if(! $this->_last_version) {
+            $this->_last_version = new DpVersion( $this->ProjectId(), $this->PageName(), $this->LastVersionNumber() );
+        }
+		assert($this->_last_version);
+		return $this->_last_version;
 	}
 
 	public function Version($vnum = -1) {
 		if($vnum != $this->LastVersionNumber() && $vnum >= 0) {
 			return new DpVersion($this->ProjectId(), $this->PageName(), $vnum);
 		}
-		if(! $this->_version) {
-			$this->_version = new DpVersion( $this->ProjectId(), $this->PageName(), $this->LastVersionNumber() );
-		}
-		return $this->_version;
+		return $this->LastVersion();
 	}
 
 	public function VersionText($vnum) {
@@ -762,39 +416,12 @@ class DpPage
     public function SaveAsDone($text) {
         global $User, $Context;
 
-        if(! $this->ActiveUserIsEditor() && ! $this->UserIsPM() && ! $User->IsSiteManager()) {
+        if(! $this->IsAvailable() &&  ! $this->ActiveUserIsEditor() && ! $this->UserIsPM() && ! $User->IsSiteManager()) {
             assert(false);
             return;
         }
 
-//        $text       = rtrim($text);
-//        $phase      = $this->Phase();
-
-//        $text       = preg_replace("/\t/us", "    ", $text);
-//        $text       = preg_replace("/ +?$/m", "", $text);
-//        $text       = preg_replace("/\s*[\n\r]+\Z/m", "", $text);
-
-
 	    $Context->UpdateVersion($this->ProjectId(), $this->PageName(), $this->LastVersionNumber(), "C", $text);
-//	    $ret = $this->LastVersion()->SaveTextState("C", $text);
-//	    $ret = $this->AddVersion($phase, $phase, $text);
-//		$sql = "INSERT INTO page_versions
-//                    SET projectid = ?,
-//                    	pagename = ?,
-//                    	phase = ?,
-//                    	task = ?,
-//                    	username = ?,
-//                    	version_time = UNIX_TIMESTAMP()
-//            		FROM page_versions v
-//            		WHERE projectid = ?
-//            			AND pagename = ?";
-//
-//		$args = array(&$text, &$projectid, &$pagename, &$phase, &$task, &$username, &$projectid, &$pagename );
-//        $ret = $dpdb->SqlExecutePS($sql, $args);
-//	    if($this->Project()->IsRoundCompleted()) {
-//		    $this->Project()->MaybeAdvanceRound();
-//		    $this->_refresh_row();
-//	    }
 
         $this->LogSaveAsDone();
         //
@@ -849,8 +476,6 @@ class DpPage
 		    default:
 			    return "";
 	    }
-//        $field = $this->UserField();
-//        return $this->_row[$field];
     }
 
 	public function Versions() {
@@ -869,6 +494,10 @@ class DpPage
 	    return $dpdb->SqlOneValue($sql);
     }
 
+	public function RoundVersion($roundid) {
+		return $this->PhaseVersion($roundid);
+	}
+
 	public function PhaseVersion($phase) {
 		global $dpdb;
 		$projectid = $this->ProjectId();
@@ -876,15 +505,19 @@ class DpPage
 
 		$sql = "
 			SELECT MAX(version) FROM page_versions
-			WHERE projectid = '$projectid'
-				AND pagename = '$pagename'
-				AND phase = '$phase'";
-		$vnum = $dpdb->SqlOneValue($sql);
+			WHERE projectid = ?
+				AND pagename = ?
+				AND phase = ?";
+        $args = array(&$projectid, &$pagename, &$phase);
+		$vnum = $dpdb->SqlOneValuePS($sql, $args);
 		if(is_null($vnum)) {
-			$vnum = $dpdb->SqlOneValue("
-				SELECT version FROM page_last_versions
-				WHERE projectid = '$projectid'
-					AND pagename = '$pagename'");
+            $sql = "
+                SELECT version FROM page_last_versions
+				WHERE projectid = ?
+					AND pagename = ?";
+            $args = array(&$projectid, &$pagename);
+
+			$vnum = $dpdb->SqlOneValuePS($sql, $args);
 		}
 		return $this->Version($vnum);
 	}
@@ -899,14 +532,9 @@ class DpPage
 
 	public function PenultimatePhase() {
 		return $this->_row['penultimate_phase'];
-//		return $this->PenultimateVersion()->Phase();
-	}
-	public function LastUsername() {
-		return $this->_row['username'];
 	}
 	public function PenultimateUsername() {
 		return $this->_row['penultimate_username'];
-//		return $this->PenultimateVersion()->Username();
 	}
 	public function PenultimateVersionNumber() {
 		return $this->_row['penultimate_version'];
@@ -922,13 +550,6 @@ class DpPage
     
     public function Owner() {
 	    return $this->LastUsername();
-//        switch($this->PageStatus()) {
-//	        case "C":
-//	        case "O":
-//                return $this->ActiveRoundUser();
-//            default:
-//                return null;
-//        }
     }
 
     public function UserIsPM() {
@@ -943,28 +564,17 @@ class DpPage
 		return $this->_row['maxversion'];
 	}
 
-	public function LastVersionNumber() {
-		global $dpdb;
-		static $_vsn;
-		if ( ! $_vsn ) {
-			$projectid = $this->ProjectId();
-			$pagename = $this->PageName();
-			$_vsn = $dpdb->SqlOneValue( "
-				SELECT MAX(version) FROM page_versions
-				WHERE projectid = '$projectid'
-					AND pagename = '$pagename'
-				GROUP BY projectid, pagename" );
-			}
-			if(is_null($_vsn)) {
-				$_vsn = -1;
-			}
-		return number_format($_vsn);
-	}
-
-    // the final user, regardless of current state
-    public function LastUser() {
-        return $this->_row['username'];
+    public function LastUsername() {
+        return $this->LastVersion()->Username();
     }
+
+	public function LastVersionNumber() {
+        if( ! isset($this->_row['last_version'])) {
+            dump($this->_row);
+            die();
+        };
+        return $this->_row['last_version'];
+	}
 
     // the final text, regardless of current state
     public function LastVersionText() {
@@ -982,12 +592,6 @@ class DpPage
 		    $ary[] = $version->Username();
 	    }
 	    array_shift($ary);
-//        foreach(array("P1", "P2", "P3", "F1", "F2") as $rid) {
-//            $usr = $this->RoundUser($rid);
-//            if($usr != "") {
-//                $ary[] = $usr;
-//            }
-//        }
         return $ary;
     }
 
@@ -1004,8 +608,16 @@ class DpPage
     }
 
     public function UserMayManage() {
-        $p = $this->project(); 
+        $p = $this->project();
         return $p->UserMayManage();
+    }
+
+    public function UserMayProof() {
+        if($this->UserIsOwner()) {
+            return true;
+        }
+        $p = $this->project(); 
+        return $p->UserMayProof();
     }
 
     public function MayBeMarkedBadByActiveUser() {
@@ -1015,8 +627,6 @@ class DpPage
     public function ActiveUserIsEditor() {
         global $User;
 	    return lower($this->Owner()) == lower($User->Username())
-//        return
-//            lower($this->RoundUser($this->RoundId())) == lower($User->Username())
             && ($this->IsSaved() || $this->IsCheckedOut());
     }
 
@@ -1029,8 +639,20 @@ class DpPage
     // and the user is qualified,
     protected function IsAvailableForActiveUser() {
         global $User;
-        if(! $this->IsAvailable())
+        switch($this->Phase()) {
+            case "P1":
+            case "P2":
+            case "P3":
+            case "F1":
+            case "F2":
+                break;
+            default:
+                return false;
+        }
+
+        if($this->IsOnHold()) {
             return false;
+        }
         // shouldn't need this - shouldn't be available
         if(preg_match("/^PREP/", $this->Phase()))
             return false;
@@ -1039,12 +661,6 @@ class DpPage
         }
         return true;
     }
-
-    /*
-    public function BadReporterUserName() {
-        return $this->_row['b_user'];
-    }
-    */
 
     public function PageHoldCount() {
         return 0;
@@ -1064,28 +680,18 @@ class DpPage
         return $this->HoldCount() > 0;
     }
 
-    protected function IsAvailable() {
-        switch($this->Phase()) {
-            case "P1":
-            case "P2":
-            case "P3":
-            case "F1":
-            case "F2":
-                return ! $this->IsOnHold();
-                break;
+    // the page phase is P1 - F2, and it's not on hold,
+    // but it might be checked out or saved as proofed
 
-            default:
-                break;
-        }
-        return false;
+    public function IsAvailable() {
+        return $this->State() == "A"
+        && (! $this->IsOnHold());
     }
+
     protected function IsCheckedOut() {
         return $this->PageStatus() == "O";
     }
 
-//    protected function IsSaveTemp() {
-//        return $this->PageStatus() == PAGE_TEMP;
-//    }
     public function IsSaved() {
         return $this->PageStatus() == "C";
     }
@@ -1102,7 +708,6 @@ class DpPage
         $pagename  = $this->PageName();
 	    $phase     = $this->Phase();
 	    $username  = $User->UserName();
-//        $badstate  = $this->RoundId() . "." . PAGE_BAD;
 
         $dpdb->SqlExecute( "
                 UPDATE page_versions
@@ -1111,16 +716,8 @@ class DpPage
                 	AND pagename = '$pagename'
                 	AND phase = '$phase'");
 
-//	    $isreason = $dpdb->IsTableColumn($this->ProjectId(), "b_resson");
-//        if($isreason) {
-//            $dpdb->SqlExecute("
-//                UPDATE $projectid
-//                SET b_reason = '$reason'
-//                WHERE pagename = '{$this->PageName()}'");
-//        }
 
-        $this->LogMarkAsBad($reason);
-        // $this->LogPageEvent( PG_EVT_SET_BAD );
+        $this->LogMarkAsBad();
          $this->SendBadPageEmail($username, $reason);
     }
 
@@ -1141,42 +738,6 @@ Thanks!
 
 The Administration"));
     }
-
-/*
-    private function SetPageAvailable($status) {
-        global $dpdb;
-        $projectid = $this->ProjectId();
-        $pagename = $this->PageName();
-        $roundid = $this->RoundId();
-        $pagestate = "{$roundid}.".PAGE_AVAIL;
-        $dpdb->SqlExecute("
-            UPDATE $projectid
-            SET state = '$pagestate'
-            WHERE projectid = '$projectid'
-                AND pagename = '$pagename'");
-    }
-
-    public function ClearBad() {
-        global $dpdb;
-        $projectid = $this->ProjectId();
-        $pagename = $this->PageName();
-        $roundid =  $this->RoundId();
-        $pagestate = $roundid . "." . PAGE_AVAIL;
-        $dpdb->SqlExecute( "
-                UPDATE $projectid
-                SET b_user = NULL,
-                    state      = '$pagestate'
-                WHERE pagename = '$pagename'");
-        $this->LogEraseBadMark();
-        $this->RecalcProjectPageCounts();
-        // $this->LogPageEvent( PG_EVT_CLEAR_BAD );
-
-    }
-*/
-
-//    public function ClearRound() {
-//        $this->Clear($this->RoundId());
-//    }
 
     public function Clear() {
 	    switch ( $this->Phase() ) {
@@ -1216,11 +777,7 @@ The Administration"));
 	    $projphase = $proj->Phase();
 	    if($Context->PhaseSequence($projphase) < $Context->PhaseSequence($phase)){
 		    $proj->RevertPhase();
-//		    $state = $phase . "." . PAGE_OUT;
 	    }
-//	    else {
-//		    $state = $phase . "." . PAGE_AVAIL;
-//	    }
 
         $projectid = $this->ProjectId();
 	    $pagename  = $this->PageName();
@@ -1357,52 +914,6 @@ The Administration"));
         $this->log_page_event( "add", null);
     }
 
-
-    /*
-    protected function LogPageEvent($event_type, $note = "") {
-        global $dpdb;
-        global $User;
-
-        $username = $User->Username();
-        assert($username != "");
-
-        $dpdb->SqlExecute("
-            INSERT INTO page_events
-            SET event_time = UNIX_TIMESTAMP(),
-                projectid  = '{$this->ProjectId()}',
-                page_name  = '{$this->PageName()}',
-                username   = '$username',
-                task_code  = '{$this->RoundId()}',
-                event_type = '$event_type',
-                note       = ".SqlQuote($note));
-    }
-
-    protected function LogPageLoadEvent($event_type, $note = "") {
-        global $dpdb;
-
-        $dpdb->SqlExecute("
-            INSERT INTO page_events
-            SET event_time = UNIX_TIMESTAMP(),
-                projectid  = '{$this->ProjectId()}',
-                page_name  = '{$this->PageName()}',
-                username   = 'extern_load',
-                task_code  = '{$this->RoundId()}',
-                event_type = '$event_type',
-                note       = ".SqlQuote($note));
-    }
-    */
-
-/*
-    private function LogPageError($errmsg, $comment) {
-        global $dpdb;
-        $dpdb->SqlExecute("
-            INSERT INTO page_errors
-            SET eventtime = UNIX_TIMESTAMP(),
-                errormessage = '$errmsg',
-                comment = '$comment'");
-    }
-*/
-
     // accept a new text version from UI, save temp, and check it.
     public function WordCheckText($langcode, $text) {
         // spellcheck the submitted text
@@ -1425,7 +936,7 @@ The Administration"));
         for($i = 0; $i < count($tlines); $i++) {
             $tline = $tlines[$i];
             //
-            $rwo = RegexStringsOffsets($tline, $langcode);
+            $rwo = RegexStringsOffsets($tline);
             if(count($rwo) == 0) {
                 continue;
             }
@@ -1460,7 +971,7 @@ The Administration"));
     }
 
 
-    public function AcceptWordsArray($langcode, $acceptwords) {
+    public function SuggestWordsArray($langcode, $acceptwords) {
         $p = $this->project();
         $p->SuggestWordsArray($langcode, $acceptwords);
     }
@@ -1489,19 +1000,13 @@ class DpProtoPage extends DpPage
 {
     private $_extimgfilepath;
     private $_exttextfilepath;
-//    private $_extimgfile;
-//    private $_exttextfile;
 
     public function IsExternalImageFile() {
         return file_exists($this->_extimgfilepath);
-//        $f = $this->ExternalImageFile();
-//        return $f ? $f->Exists() : false;
     }
 
     public function IsExternalTextFile() {
         return file_exists($this->_exttextfilepath);
-//        $f = $this->ExternalTextFile();
-//        return $f ? $f->Exists() : false;
     }
 
     public function SetExternalImageFilePath($f) {
@@ -1536,74 +1041,23 @@ class DpProtoPage extends DpPage
         if($this->IsExternalImageFile()) {
             unlink($this->ExternalImageFilePath());
         }
-//        $f = $this->ExternalImageFile();
-//        if( ! is_null($f)) {
-//            if(file_exists($f->filePath())) {
-//                unlink($f->FilePath());
-//            }
-//        }
     }
 
     public function ExternalTextFilePath() {
         return $this->_exttextfilepath;
-//        if(isset($this->_exttextfile)) {
-//            return $this->_exttextfile;
-//        }
-//        $path = build_path($this->UploadPath(),
-//                            $this->PageName().".txt");
-//
-//        if(file_exists($path)) {
-//            $this->SetExternalTextFile(new DpFile($path));
-//            return $this->_exttextfile;
-//        }
-//        return null;
     }
 
     public function ExternalImageFilePath() {
         return $this->_extimgfilepath;
-//        if(isset($this->_extimgfile)) {
-//            return $this->_extimgfile;
-//        }
-//
-//        $path = build_path($this->UploadPath(), $this->ImageFile());
-//        if(file_exists($path)) {
-//            $this->SetExternalImageFile(new DpFile($path));
-//            return $this->_extimgfile;
-//        }
-//
-//        return null;
     }
-
-//    public function ExternalImageFilePath() {
-//        $f = $this->ExternalImageFile();
-//        return $f ? $f->FilePath() : "";
-//    }
 
     public function ExternalImageFileName() {
         return basename($this->ExternalImageFilePath());
-//        $f = $this->ExternalImageFile();
-//        return $f ? $f->FileName() : "";
     }
-
-//    private function UploadPath() {
-//        return ProjectUploadPath($this->ProjectId());
-//    }
-
-//    public function ExternalImageUrl() {
-//        $f = $this->ExternalImageFile();
-//        return $f ? $f->Url() : "";
-//    }
 
     public function ExternalTextFileName() {
         return basename($this->ExternalTextFilePath());
-//        $f = $this->ExternalTextFile();
-//        return $f ? $f->FileName() : "";
     }
-
-//    public function ExternalTextFilePath() {
-//        $f = $this->ExternalTextFile();
-//        return $f ? $f->FilePath() : "";
-//    }
 
     public function UploadedTextFilePath() {
         return $this->ExternalTextFilePath();
@@ -1611,13 +1065,10 @@ class DpProtoPage extends DpPage
 
     public function IsExternalText() {
         return $this->IsExternalTextFile();
-//        return $f ? $f->Exists() : false;
     }
 
     public function ExternalImageFileSize() {
         return filesize($this->ExternalImageFilePath());
-//        $f = $this->ExternalImageFile();
-//        return $f ? $f->Size() : "";
     }
 
 	private function remove_utf8_bom($text) {
@@ -1648,37 +1099,11 @@ class DpProtoPage extends DpPage
 		copy($path, $topath);
 	}
 
-//    public function ReplaceText() {
-//	    $this->AddOrReplace();
-//    }
-
-//    public function AddOrReplace() {
-//        if($this->Exists()) {
-//            if($this->IsExternalImageFile()) {
-//                $this->ReplaceImageFile($this->ExternalImageFilePath());
-//            }
-//
-//            if($this->IsExternalText()) {
-//                $this->ReplaceTextFile($this->ExternalTextFilePath());
-//            }
-//        }
-//        else {
-//            $this->AddPage();
-//        }
-//    }
-
-//    public function ReplaceImageFile($path) {
-//    }
-//	public function ReplaceTextFile($path) {
-//	}
-
     public function ImagePath() {
         return $this->ImageFile() == ""
             ? ""
             : build_path($this->ProjectPath(), $this->ImageFile());
     }
-
-
 }
 
 
@@ -1686,59 +1111,38 @@ class DpProtoPage extends DpPage
 
 function sql_project_page($projectid, $pagename) {
     return "
-        SELECT
-            pg.projectid,
-            pg.pagename,
-            pg.imagefile,
-            pv.state,
-
-            pv.username,
-            pv.version_time,
-            pv.version,
-            pv.phase
-
-        FROM pages pg
-
-        JOIN projects p
-        	ON pg.projectid = p.projectid
-
-        LEFT JOIN page_versions pv
-        	ON pg.projectid = pv.projectid
-        	AND pg.pagename = pv.pagename
-        	AND p.phase     = pv.phase
-
-        WHERE pg.projectid = '$projectid'
-        	AND pg.pagename = '{$pagename}'";
+		    SELECT pg.projectid,
+ 					pg.pagename,
+ 					pg.imagefile,
+ 					pv.version last_version,
+ 					pv.phase,
+ 					pv.version_time,
+ 					pv.state,
+ 					pv.username,
+					puv.version penultimate_version,
+ 					puv.phase penultimate_phase,
+ 					puv.version_time penultimate_version_time,
+ 					puv.state penultimate_state,
+ 					puv.username penultimate_username
+		    FROM pages pg
+		    JOIN projects p
+		    	ON pg.projectid = p.projectid
+		    JOIN page_last_versions pv
+		    	ON pg.projectid = pv.projectid
+                    AND pg.pagename = pv.pagename
+		    LEFT JOIN page_versions puv
+		    	ON pv.projectid = puv.projectid
+                    AND pv.pagename = puv.pagename
+                    AND pv.version > puv.version
+		    LEFT JOIN page_versions pv0
+		    	ON pv.projectid = puv.projectid
+                    AND pv.pagename = puv.pagename
+                    AND pv.version > pv0.version
+                    AND puv.version < pv0.version
+			WHERE pg.projectid = '$projectid'
+                AND pg.pagename = '$pagename'
+                AND pv0.id IS NULL";
 }
-
-/*
-function sql_project_page2($projectid, $pagename) {
-	return "
-        SELECT
-            '$projectid' AS projectid,
-            pagename,
-            pagename,
-            imagefile AS image,
-            imagefile,
-            status,
-
-            round1_user,
-            round2_user,
-            round3_user,
-            round4_user,
-            round5_user,
-
-            round1_time,
-            round2_time,
-            round3_time,
-            round4_time,
-            round5_time
-
-        FROM project_pages
-        WHERE projectid = '$projectid'
-        	AND pagename = '{$pagename}' ";
-}
-*/
 
 function dp_log_page_event( $projectid, $pagename, $event_type, $phase, $version = null, $remark = null ) {
     global $dpdb, $User;
@@ -1760,7 +1164,6 @@ function dp_log_page_event( $projectid, $pagename, $event_type, $phase, $version
 
 	$args = array( &$projectid, &$pagename, &$version, &$event_type, &$username, &$phase, &$remark);
 	$dpdb->SqlExecutePS($sql, $args);
-
 }
 
 
@@ -1774,7 +1177,7 @@ function RegexStringsOffsets(&$text ) {
     return $m[0];
 }
 
-function RegexStringOffsets($str, &$text ) {
+function RegexStringByteOffsets($str, &$text ) {
     preg_match_all($str, $text, $m, PREG_OFFSET_CAPTURE);
     return $m[0];
 }

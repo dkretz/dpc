@@ -39,9 +39,14 @@ class DpPhpbb3
         $this->_username = $user->data['username'];
     }
 
-    public function Exists() {
-        global $user;
-        return $user && $user->data;
+    public function UsernameExists($name) {
+        global $dpdb, $phpbb_database_name, $forum_users_table;
+        $utable = $phpbb_database_name . ".".$forum_users_table;
+        $sql = "SELECT COUNT(1) FROM $utable
+                WHERE username_clean = ?";
+        $args = array(&$name);
+        $isname = $dpdb->SqlOneValuePS($sql, $args);
+        return $isname == 1;
     }
 
 //    public function UserData() {
@@ -124,12 +129,13 @@ class DpPhpbb3
         return $user->data['user_unread_privmsg'];
     }
 
-    public function CreateTopic($subj, $msg, $poster_name = "") {
+    public function CreateTopic($subj, $msg, $poster) {
         global $dpdb;
 //	    global $forumdb, $forumpfx;
         global $waiting_projects_forum_idx;
         $dpsubject = utf8_normalize_nfc($subj);
         $dpmessage = utf8_normalize_nfc($msg);
+	    $pname = lower($poster);
 
         // variables to hold the parameters for submit_post
         $poll = $uid = $bitfield = $options = '';
@@ -166,30 +172,26 @@ class DpPhpbb3
             'force_approved_state'  => true,
         );
         
-        submit_post('post', $dpsubject, '', POST_NORMAL,  $poll, $data);
+        submit_post('post', $dpsubject, $poster, POST_NORMAL,  $poll, $data);
 
         $post_id = $data['post_id'];
         $topic_id = $data['topic_id'];
-	    $pname = lower($poster_name);
 	    $bb_users_table = build_forum_users_table();
         $pm_id = $dpdb->SqlOneValue("
                 SELECT user_id FROM $bb_users_table
                 WHERE username_clean = '$pname'");
             
-        if($poster_name != "") {
-            // dump($data);
+        if($poster != "") {
             $sql = "
                 UPDATE $bb_users_table
                 SET poster_id = $pm_id
                 WHERE post_id = $post_id";
-            // dump($sql);
-            // die();
             $dpdb->SqlExecute($sql);
             $dpdb->SqlExecute("
                 UPDATE $bb_users_table
                 SET topic_poster = $pm_id,
-                    topic_first_poster_name = '$poster_name',
-                    topic_last_poster_name = '$poster_name',
+                    topic_first_poster_name = '$poster',
+                    topic_last_poster_name = '$poster',
                     topic_last_poster_id = $pm_id
                 WHERE topic_id = $topic_id");
                 
@@ -266,14 +268,14 @@ class DpPhpbb3
         return $dpdb->SqlOneValue($sql);
     }
 
-    public function SetTopicForumId($topic_id, $forum_id) {
+    public function MoveTopicForumId($topic_id, $forum_id) {
         global $dpdb;
-//	    global $forumdb, $forumpfx;
 	    $topics_table = build_forum_topics_table();
         $sql = "UPDATE $topics_table
-                SET forum_id = {$forum_id}
-                WHERE topic_id = {$topic_id}";
-        $dpdb->SqlExecute($sql);
+                SET forum_id = ?
+                WHERE topic_id = ?";
+        $args = array(&$forum_id, &$topic_id);
+        $dpdb->SqlExecutePS($sql, $args);
     }
 }
 

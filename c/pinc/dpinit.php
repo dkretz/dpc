@@ -27,15 +27,14 @@ require_once $relPath.'DpVersion.class.php';
 require_once $relPath.'DpTable.class.php';
 include_once($relPath.'gettext_setup.inc');
 include_once($relPath.'site_news.inc');
-//include_once($relPath.'RoundsInfo.php');
+include_once($relPath.'RoundsInfo.php');
 
 //require_once $relPath . "udb_user.php";
 
-global $db_server, $db_user, $db_password;
-global $db_name;
+global $db_server, $db_user, $db_password, $db_name;
 
-mysql_connect($db_server, $db_user, $db_password);
-mysql_select_db($db_name);
+mysqli_connect($db_server, $db_user, $db_password, $db_name);
+//mysqli_select_db($db_name);
 
 $u = Arg('userNM');
 $p = Arg('userPW');
