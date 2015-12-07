@@ -2,8 +2,7 @@
 $relPath = "./pinc/";
 require_once "pinc/dpinit.php";
 
-$projectid = ArgProjectid();
-$pagename  = ArgPageName();
+$scanpath = Arg("scanpath");
 
 $pg = new DpPage($projectid, $pagename);
 $imgpath = $pg->ImageFilePath();

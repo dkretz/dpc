@@ -1,18 +1,19 @@
 <?php
 
-function is_words_file($projectid, $code, $langcode) {
-    $path = words_file_path($projectid, $code, $langcode);
+function is_project_words_file($projectid, $code, $langcode) {
+    $path = project_words_file_path($projectid, $code, $langcode);
     return is_file($path);
 }
 
-function is_good_words_file($projectid, $langcode) {
-    return is_words_file($projectid, 'good', $langcode);
+function is_project_good_words_file($projectid, $langcode) {
+    return is_project_words_file($projectid, 'good', $langcode);
 }
 
-function is_bad_words_file($projectid, $langcode) {
-    return is_words_file($projectid, 'bad', $langcode);
+function is_project_bad_words_file($projectid, $langcode) {
+    return is_project_words_file($projectid, 'bad', $langcode);
 }
 
+// every real words file is a serialized array
 function make_empty_words_file($path) {
     file_put_contents($path, serialize(array()));
 }
@@ -24,7 +25,7 @@ function copy_site_good_words_file($projectid, $langcode) {
     if(! file_exists($from)) {
         make_empty_words_file($from);
     }
-    $to = words_file_path($projectid, "good", $langcode);
+    $to = project_words_file_path($projectid, "good", $langcode);
     copy($from, $to);
 }
 
@@ -35,36 +36,38 @@ function copy_site_bad_words_file($projectid, $langcode) {
     if(! file_exists($from)) {
         make_empty_words_file($from);
     }
-    $to = words_file_path($projectid, "bad", $langcode);
+    $to = project_words_file_path($projectid, "bad", $langcode);
     copy($from, $to);
 }
 
-function good_words_array($projectid, $langcode) {
-    if(! is_good_words_file($projectid, $langcode)) {
+function project_good_words_array($projectid, $langcode) {
+    if(! is_project_good_words_file($projectid, $langcode)) {
         copy_site_good_words_file($projectid, $langcode) ;
     }
-    return _read_words_array($projectid, 'good', $langcode);
+    return _read_project_words_array($projectid, 'good', $langcode);
 }
 
-function bad_words_array($projectid, $langcode) {
-    if(! is_bad_words_file($projectid, $langcode)) {
+function project_bad_words_array($projectid, $langcode) {
+    if(! is_project_bad_words_file($projectid, $langcode)) {
         copy_site_bad_words_file($projectid, $langcode) ;
     }
-    return _read_words_array($projectid, 'bad', $langcode);
+    return _read_project_words_array($projectid, 'bad', $langcode);
 }
 
-function suspect_words_array($projectid, $langcode) {
-    return _read_words_array($projectid, 'suspect', $langcode);
-}
+//function suspect_words_array($projectid, $langcode) {
+//    return _read_project_words_array($projectid, 'suspect', $langcode);
+//}
 
-function suggested_words_array($projectid, $langcode) {
-    return _read_words_array($projectid, 'suggested', $langcode);
+function project_suggested_words_array($projectid, $langcode) {
+    return _read_project_words_array($projectid, 'suggested', $langcode);
 }
 
 function words_file_name($code, $langcode) {
     return "{$langcode}.{$code}.txt";
 }
 
+// words files contain serialized arrays
+// so unserializing the contents returns an array
 function _read_file_array($path) {
     if(! is_file($path)) {
 	    make_empty_words_file( $path );
@@ -85,6 +88,7 @@ function _read_file_array($path) {
     return $ret;
 }
 
+// site word files contain an array of default words
 function _read_site_words_array($code, $langcode) {
     $path = site_words_file_path($code, $langcode);
     if(! file_exists($path)) {
@@ -116,13 +120,13 @@ function site_words_file_path($code, $langcode) {
                     words_file_name($code, $langcode));
 }
 
-function words_file_path($projectid, $code, $langcode) {
-    return build_path(ProjectWordcheckPath($projectid), 
+function project_words_file_path($projectid, $code, $langcode) {
+    return build_path(ProjectWordcheckPath($projectid),
                     words_file_name($code, $langcode));
 }
 
-function _read_words_array($projectid, $code, $langcode) {
-    $path = words_file_path($projectid, $code, $langcode);
+function _read_project_words_array($projectid, $code, $langcode) {
+    $path = project_words_file_path($projectid, $code, $langcode);
     if(! is_file($path)) {
         make_empty_words_file($path);
         return array();
@@ -134,13 +138,13 @@ function _write_file_array($path, $ary) {
     file_put_contents($path, serialize($ary));
 }
 
-function _write_words_array($projectid, $code, $langcode, $warray) {
+function _write_project_words_array($projectid, $code, $langcode, $warray) {
     $warray = preg_replace("~^\s*?(.*?\S)\s*?$~um", "$1", $warray);
     $anew   = to_unique_array($warray);
 
     $anew = array_diff($anew, array(""));
 
-    $path = words_file_path($projectid, $code, $langcode);
+    $path = project_words_file_path($projectid, $code, $langcode);
     _write_file_array($path, $anew);
 }
 
@@ -154,16 +158,16 @@ function _write_site_words_array($code, $langcode, $warray) {
     _write_file_array($path, $anew);
 }
 
-function merge_words_array($projectid, $code, $langcode, $warray)
-{
-    $a      = _read_words_array($projectid, $code, $langcode);
-    $anew   = to_unique_array(array_merge($warray, $a));
-
-    if(isset($anew['']))
-        unset($anew['']);
-
-    _write_words_array($projectid, $code, $langcode, $anew);
-}
+//function merge_project_words_array($projectid, $code, $langcode, $warray)
+//{
+//    $a      = _read_project_words_array($projectid, $code, $langcode);
+//    $anew   = to_unique_array(array_merge($warray, $a));
+//
+//    if(isset($anew['']))
+//        unset($anew['']);
+//
+//    _write_project_words_array($projectid, $code, $langcode, $anew);
+//}
 
 // given a word list in a string, create a unique array of words.
 // Note that capitalization counts.

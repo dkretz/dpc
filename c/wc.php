@@ -44,7 +44,6 @@ $json           = json_decode($jq);
 
 if(! is_object($json)) {
     $err = "wc: json not-an-object error: {$jq}";
-    LogMsg($err);
     send_alert($err);
     echo "not an object :: $jq";
     exit;
@@ -70,24 +69,24 @@ if($username) {
     $User               = new DpUser($username);
 }
 
-	$Log->logWrite("wc recv: $querycode");
+//	$Log->logWrite("wc recv: $querycode");
 
 // these queries come from dp_edit.js
 switch($querycode) {
     // user explicitly requests temp save
     // send back updated tags
 
-	case "clearlog":
-		$Log->logClear();
-		exit;
+//	case "clearlog":
+//		$Log->logClear();
+//		exit;
 
     case "savetemp":
         $page = new DpPage($projectid, $pagename);
         $page->SaveText($text);
-        // if($acceptwords && count($acceptwords) > 0) {
-            // $words = preg_split("/\t/", $acceptwords);
-            // $page->SuggestWordsArray($langcode, $words);
-        // }
+         if($acceptwords && count($acceptwords) > 0) {
+             $words = preg_split("/\t/", $acceptwords);
+             $page->SuggestWordsArray($langcode, $words);
+         }
 
         $a          = array();
          $wct        = $page->WordCheckText($langcode, $text);
@@ -233,14 +232,14 @@ switch($querycode) {
 */
 
     case "addgoodword":
-		$Log->logWrite("query: addgoodword");
-		$Log->logWrite(" ($langcode) $word");
+//		$Log->logWrite("query: addgoodword");
+//		$Log->logWrite(" ($langcode) $word");
         $project            = new DpProject($projectid);
         $project->AddGoodWord($langcode, $word);
         $a                  = array();
         $a["querycode"]     = $querycode;
         $a["response"]      = "ack";
-	    $Log->logWrite("response: (addgoodword) ACK");
+//	    $Log->logWrite("response: (addgoodword) ACK");
         json_echo($a);
         exit;
 

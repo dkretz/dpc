@@ -4,6 +4,8 @@ global $Context;
 
 $news_pages = array(
     'PREP'    => _("Project Prep"),
+    'PP'      => _("Post Processing"),
+    'PPV'     => _("PP Verification"),
     'FRONT'   => _('Front Page'),
     'FAQ'     => _('FAQ Central'),
     'HUB'     => _('Activity Hub'),
@@ -13,6 +15,9 @@ $news_pages = array(
 );
 
 /** @var Round $round */
+if(! isset($Context)) {
+	$Context = new DpContext();
+}
 foreach($Context->Rounds() as $round) {
 	$news_pages[$round->RoundId()] = $round->Caption();
 }
@@ -80,7 +85,7 @@ function show_news_for_page( $news_page_id ) {
         // We have at least one news item to show,
         // so display the news header.
 
-        $header_title = sprintf( _('News for %s'), $news_subject );
+        $header_title = _("$news_subject News");
 
         // Show header-title as an image, if available.
         global $dyn_dir, $dyn_url;

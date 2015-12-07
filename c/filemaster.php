@@ -49,10 +49,6 @@ $projectid              = ArgProjectId();
 // directory to browse from
 $chk_text               = ArgArray("chk_text");      // selected files
 
-if(dkretz()) {
-	dump(count($chk_text));
-	die();
-}
 $chk_other              = ArgArray("chk_other");
 $chk_delete             = ArgArray("chk_delete");
 

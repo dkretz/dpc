@@ -22,7 +22,11 @@ function utf8_uriencode($str) {
 }
 */
 
-/** @var String $str */
+
+/**
+ * @param $str
+ * @return string
+ */
 function maybe_convert($str) {
     // $re = "/([Ã‡|Ã¦|Ã€Â]Ãƒ|Ã©|Â£|Å“|eÌ)/u";
 
@@ -187,8 +191,8 @@ function tempdir($dir = null, $prefix = null) {
 
 function DefaultLocale() {
     global $User;
-    return $User->Language()
-        ? $User->Language()
+    return $User->InterfaceLanguage()
+        ? $User->InterfaceLanguage()
         : "en";
 }
 
@@ -346,8 +350,15 @@ function endswith($str, $sfx) {
 	return right($str, mb_strlen($sfx)) == $sfx;
 }
 
+function TextRows($text) {
+    return text_lines($text);
+}
 function text_lines($text) {
     return preg_split('/\r?\n/u', $text);
+}
+
+function empty_line($text) {
+    return trim($text) == "";
 }
 
 /**
@@ -558,7 +569,7 @@ function pdump($val) {
     </pre>\n";
 }
 
-function dumpstr($val) {
+function strdump($val) {
     return pdump($val);
 }
 
@@ -717,7 +728,7 @@ function ReplaceLastRegex($ptn, $repl, $flags, $text) {
 }
 
 // returns offset from $start, or -1 for not found.
-function RegexOffset($regex, $flags, $text, $start = 0) {
+function RegexByteOffset($regex, $flags, $text, $start = 0) {
     $regex = "~".$regex."~".$flags;
     $n = preg_match(
             $regex, $text, $match, PREG_OFFSET_CAPTURE, $start);
@@ -787,7 +798,7 @@ function RegexMatch($regex, $flags, $text, $index = 0, $offset = 0) {
     // $matches is an array if there are submatches - else it's a string.
 	$i = preg_match( $regex, $text, $matches, PREG_OFFSET_CAPTURE, $offset);
 	if($i > 0) {
-		return $matches[$index];
+		return $matches[$index][$offset];
 	}
 	return null;
 	    // if there is no match, $matches is null
@@ -812,7 +823,7 @@ function RegexSplit($regex, $flags, $text) {
     return preg_split($regex, $text);
 }
 
-function RegexWordOffsets($word, &$text) {
+function WordByteOffsets($word, &$text) {
     $edge1 = "(?<!\p{L})";
     $edge2 = "(?!\p{L})";
     $ptn = "~{$edge1}$word{$edge2}~u";
@@ -820,7 +831,7 @@ function RegexWordOffsets($word, &$text) {
     return $m[0];
 }
 
-function RegexOffsets($word, $flags, &$text) {
+function RegexByteOffsets($word, $flags, &$text) {
     $ptn = "~$word~$flags";
     try {
         preg_match_all( $ptn, $text, $m, PREG_OFFSET_CAPTURE );
@@ -832,6 +843,9 @@ function RegexOffsets($word, $flags, &$text) {
     return $m[0];
 };
 
+function set_timeout_seconds($sec) {
+    set_time_limit($sec);
+}
 
 /**
  * date and time
@@ -1046,32 +1060,40 @@ function _timer($is_init = false) {
  */
 
 function send_string($filename, $str) {
+    header('Content-Description: File Transfer');
     header("Content-Type: application/octet-stream");
     header("Content-Disposition: attachment; filename={$filename}");
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+    header('Pragma: public');
+    header('Content-Length: ' . strlen($str));
     echo $str;
     exit;
 }
 
-function send_file($path) {
+function send_file($path, $filename = null) {
 
     if(! file_exists($path)) {
         dump("request to send phantom file $path.");
         return;
     }
 
-    header('Content-Description: File Transfer');
-    header('Content-Type: application/octet-stream');
-    header('Content-Disposition: attachment; filename='.basename($path));
-    header('Content-Transfer-Encoding: binary');
-    header('Expires: 0');
-    header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-    header('Pragma: public');
-    header('Content-Length: ' . filesize($path));
-    ob_clean();
-    flush();
-	ignore_user_abort(true);
+    if(! $filename) {
+        $filename = basename($path);
+    }
+
+    header("Content-Description: File Transfer");
+    header("Content-Type: application/octet-stream");
+    header("Content-Disposition: attachment; filename=$filename");
+//    header("Content-Transfer-Encoding: binary");
+    header("Expires: 0");
+    header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+    header("Pragma: public");
+    header("Content-Length: " . filesize($path));
+//    ob_clean();
+//    flush();
+//	ignore_user_abort(true);
     readfile($path);
-	unlink($path);
     exit;
 }
 
@@ -1097,6 +1119,9 @@ function ProjectImageFilePath($projectid, $imagefile) {
     return build_path(ProjectPath($projectid), $imagefile);
 }
 
+/*
+ * Filename suffix without the period
+ */
 function FileNameExtension($filename) {
     return pathinfo($filename, PATHINFO_EXTENSION);
 }
@@ -1155,8 +1180,8 @@ function ProjectSmoothDownloadUrl($projectid) {
 	return build_path(ProjectUrl($projectid), $projectid . "_smooth_avail.zip");
 }
 
-function ProjectSmoothDownloadPath($projectid) {
-    return build_path(ProjectPath($projectid), $projectid . "_smooth_avail.zip");
+function ProjectSmoothDownloadPath($projectid, $extension) {
+    return build_path(ProjectPath($projectid), $projectid . "_smooth_avail.$extension");
 }
 function ProjectSmoothUploadPath($projectid, $username) {
     return build_path(ProjectPath($projectid), $projectid
@@ -1226,10 +1251,9 @@ function SetPageVersionText($projectid, $pagecode, $version_number, $text) {
 function norm($str) {
 	$ptn = array("/\R/u",           // normalize newline
 				 "/\t+/",           // any tabs to one space
-				 "/\  +/",          // multiple spaces to one
 				 "/[”‟““]/u",        // curly double-quotes to not
 				 "/[‘‘’‛]/u");        // curly single-quotes to not
-	$rpl = array("\n", " ", " ", '"', "'");
+	$rpl = array("\n", " ", '"', "'");
 	return trim_blank_lines(preg_replace($ptn, $rpl, $str));
 }
 
@@ -1559,7 +1583,7 @@ class Encoding {
          */
 
         if(is_array($text)) {
-            /** @var Array $text  */
+            /** @var array $text  */
             foreach($text as $k => $v)
             {
                 $text[$k] = self::toUTF8($v);

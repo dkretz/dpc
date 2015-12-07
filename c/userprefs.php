@@ -14,6 +14,7 @@ error_reporting(E_ALL);
 $relPath="./pinc/";
 // dpinit grabs prefs and loads userP
 include_once($relPath.'dpinit.php');
+//include_once($relPath.'prefs_options.inc');
 include_once($relPath.'tabs.inc');
 
 $User->IsLoggedIn()
@@ -213,7 +214,7 @@ function echo_general_tab() {
     // language
     show_preference(
         _('Language'), 'u_lang', 'lang',
-        $User->Language(),
+        $User->InterfaceLanguage(),
         'dropdown',
         $u_lang);
 

@@ -186,14 +186,14 @@ function url_for_processpage() {
     return $proof_url . "processpage.php";
 }
 
-function url_for_processtext() {
-    global $proof_url;
-    return $proof_url . "processtext.php";
-}
-function url_for_iprocesstext() {
-    global $proof_url;
-    return $proof_url . "iprocesstext.php";
-}
+//function url_for_processtext() {
+//    global $proof_url;
+//    return $proof_url . "processtext.php";
+//}
+//function url_for_iprocesstext() {
+//    global $proof_url;
+//    return $proof_url . "iprocesstext.php";
+//}
 
 
 // -- project
@@ -303,19 +303,19 @@ function url_for_ppv() {
 }
 
 function url_for_upload_ppv_return($projectid) {
-    return url_for_upload("ppv_temp", $projectid);
+    return url_for_upload_page("ppv_temp", $projectid);
 }
 function link_to_upload_pp($projectid, $prompt) {
     return link_to_url(url_for_upload_pp($projectid), $prompt);
 }
 function url_for_upload_pp($projectid) {
-    return url_for_upload("pp_temp", $projectid);
+    return url_for_upload_page("pp_temp", $projectid);
 }
 function url_for_upload_ppv_complete($projectid) {
-    return url_for_upload("ppv_complete", $projectid);
+    return url_for_upload_page("ppv_complete", $projectid);
 }
 
-function url_for_upload($upload_action, $projectid) {
+function url_for_upload_page($upload_action, $projectid) {
     global $code_url;
     return "$code_url/tools/upload_text.php"
             ."?projectid={$projectid}"
@@ -350,9 +350,9 @@ function redirect_to_proof_page($projectid, $pagename) {
     redirect_to_url(url_for_proof_page($projectid, $pagename));
 }
 
-function link_to_proof_page($projectid, $pagename, $prompt) {
+function link_to_proof_page($projectid, $pagename, $prompt, $newtab=false) {
     return link_to_url(
-        url_for_proof_page($projectid, $pagename), $prompt);
+        url_for_proof_page($projectid, $pagename), $prompt, $newtab);
 }
 
 function url_for_proof_page($projectid, $pagename) {
@@ -373,16 +373,21 @@ function link_to_smooth_reading($prompt, $isnewpage = false) {
     return link_to_url(url_for_smooth_reading(), $prompt, $isnewpage);
 }
 
+
+// -- upload text to smooth
+function link_to_upload_text_to_smooth($projectid, $prompt = "Upload") {
+    return link_to_url(url_for_upload_text_to_smooth($projectid), $prompt);
+}
+function url_for_upload_text_to_smooth($projectid) {
+	return url_for_upload_page("smooth_avail", $projectid);
+}
+
 function link_to_smoothed_upload($projectid, $prompt = "Upload") {
     return link_to_url(url_for_smoothed_upload($projectid), $prompt);
 }
 
 function url_for_smoothed_upload( $projectid ) {
-	return url_for_upload("smooth_done", $projectid);
-//    global $code_url;
-//    return "$code_url/tools/upload_text.php"
-//    ."?projectid=$projectid"
-//    ."&amp;upload_action=smooth_done";
+    return url_for_upload_page("smooth_done", $projectid);
 }
 
 function link_to_smooth_download($projectid, $prompt = "Download") {
@@ -394,18 +399,40 @@ function url_for_smooth_download($projectid) {
     return "$projects_url/$projectid/{$projectid}_smooth_avail.zip";
 }
 
-
-// -- upload text to smooth
-function link_to_upload_text_to_smooth($projectid, $prompt = "Upload") {
-    return link_to_url(url_for_upload_text_to_smooth($projectid), $prompt);
+function url_for_image_index($projectid) {
+    global $code_url;
+    return "$code_url/tools/proofers/images_index.php"
+        . "?projectid=$projectid";
 }
-function url_for_upload_text_to_smooth($projectid) {
-	return url_for_upload("smooth_avail", $projectid);
+
+function link_to_image_index($projectid, $prompt = "View images online", $is_new_tab = false) {
+    return link_to_url(url_for_image_index($projectid), $prompt, $is_new_tab);
+}
+
+function link_to_project_text($projectid, $phase = 'F2', $prompt = "", $isnew = false) {
+    return link_to_url(url_for_project_text($projectid, $phase), $prompt, $isnew);
+}
+
+function url_for_project_text($projectid, $phase = "F2") {
+    global $code_url;
+    return "$code_url/project_text.php"
+    . "?projectid=$projectid"
+    . "&amp;phase=$phase";
+}
+/*
+function link_to_upload_smoothed_text($projectid, $prompt = "Upload smooth reading notes") {
+	return link_to_url(url_for_upload_smoothed_text($projectid), $prompt);
+}
+
+function url_for_upload_smoothed_text($projectid) {
+	return url_for_upload_page("smooth_done", $projectid);
 //    global $code_url;
 //    return "$code_url/tools/upload_text.php"
-//        ."?projectid=$projectid"
-//        ."&amp;upload_action=smooth_avail";
+//    ."?projectid=$projectid"
+//    ."&amp;upload_action=smooth_done";
 }
+*/
+
 
 function url_for_download_text($projectid, $pagename, $phase) {
     global $code_url;
@@ -413,18 +440,6 @@ function url_for_download_text($projectid, $pagename, $phase) {
                 ."?projectid=$projectid"
                 ."&amp;pagename=$pagename"
                 ."&amp;roundid=$phase";
-}
-
-function link_to_upload_smoothed_text($projectid, $prompt = "Upload smooth reading notes") {
-	return link_to_url(url_for_upload_smoothed_text($projectid), $prompt);
-}
-
-function url_for_upload_smoothed_text($projectid) {
-	return url_for_upload("smooth_done", $projectid);
-//    global $code_url;
-//    return "$code_url/tools/upload_text.php"
-//    ."?projectid=$projectid"
-//    ."&amp;upload_action=smooth_done";
 }
 
 
@@ -693,10 +708,11 @@ function link_to_page_detail_mine($projectid, $prompt, $is_new_tab = false) {
 // -------------------------------------------------------------------
 // -- view image - image + navigation
 function url_for_view_image($projectid, $pagename) {
-	return url_for_page_image($projectid, $pagename);
-//    return "$code_url/tools/project_manager/displayimage.php"
-//        ."?projectid={$projectid}"
-//        ."&amp;pagename={$pagename}";
+	global $code_url;
+//	return url_for_page_image($projectid, $pagename);
+    return "$code_url/tools/project_manager/displayimage.php"
+        ."?projectid={$projectid}"
+        ."&amp;pagename={$pagename}";
 }
 function link_to_view_image($projectid, $pagename, $msg = "", $is_new_tab = false) {
     if($msg == "")
@@ -809,6 +825,8 @@ function link_to_fadedpage( $prompt = "FadedPage" ) {
 
 /**
  *   Members
+ * @param string $prompt
+ * @return string
  */
 
 
@@ -822,7 +840,7 @@ function url_for_member_list() {
 }
 
 
-function link_to_member_stats($username, $roundid, $prompt = "") {
+function link_to_member_stats($username, $roundid = "all", $prompt = "") {
     return link_to_url(url_for_member_stats($username, $roundid), $prompt);
 }
 
@@ -841,6 +859,41 @@ function url_for_team_stats($tid, $roundid = "") {
         : "$code_url/stats/teams/tdetail.php?tid=$tid";
 }
 
+function url_for_team_list() {
+    global $stats_url;
+    return $stats_url . "/teams/teamlist.php";
+}
+function url_for_team($tid) {
+    global $code_url;
+    return "$code_url/stats/teams/tdetail.php?tid=$tid";
+}
+
+function link_to_team($tid, $prompt, $is_new_tab = false, $red = false) {
+    return $red
+            ? red_link_to_url(url_for_team($tid), $prompt, $is_new_tab)
+            : link_to_url(url_for_team($tid), $prompt, $is_new_tab);
+
+}
+
+function url_for_join_team($tid) {
+    global $stats_url;
+    return $stats_url . "/teams/jointeam.php?tid=$tid";
+}
+
+function url_for_quit_team($tid) {
+    global $stats_url;
+    return $stats_url . "/teams/quitteam.php?tid=$tid";
+}
+
+function link_to_quit_team($tid) {
+    return red_link_to_url(url_for_quit_team($tid), "Quit");
+}
+
+//"<a href='../teams/jointeam.php?tid={$id}'>$quit</a>\n";
+function link_to_join_team($tid) {
+    return link_to_url(url_for_join_team($tid), "Join");
+
+}
 function link_to_team_stats($tid, $roundid, $prompt = "") {
     if($prompt == "") {
         $prompt = $roundid;
@@ -1060,4 +1113,17 @@ function url_for_project_words($projectid) {
     global $wc_url;
     return "$wc_url/project_words.php"
     ."?projectid={$projectid}";
+}
+
+function link_to_notify($username, $projectid, $prompt = "notify", $setclear = "set") {
+    return link_to_url(url_for_notify($username, $projectid, $setclear), $prompt);
+//    return link_to_url(url_for_notify($username, $projectid, $setclear));
+}
+
+function url_for_notify($username, $projectid, $setclear = "set") {
+    global $code_url;
+    return "$code_url/tools/proofers/posted_notice.php"
+        ."?projectid=$projectid"
+        ."&amp;username=$username"
+        ."&amp;setclear=$setclear";
 }
