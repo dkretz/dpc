@@ -1023,6 +1023,25 @@ class DpProject
         return file_exists($this->PPDownloadPath());
     }
 
+    public function LastCompletedText() {
+        global $dpdb;
+        $projectid = $this->ProjectId();
+        $sql = "SELECT pagename, version
+                FROM page_last_completed_versions
+                WHERE projectid = ?
+                ORDER BY pagename";
+        $args = array(&$projectid);
+        $pgs = $dpdb->SqlRowsPS($sql, $args);
+        $text = "";
+        foreach($pgs as $pg) {
+            $name = $pg['pagename'];
+            $vsn = $pg['version'];
+            $text .= (ExportPageHeader($pg['pagename']) . "\n");
+            $text .= PageVersionText($this->ProjectId(), $name, $vsn) . "\n";
+        }
+        return $text;
+    }
+
 	public function PhaseExportText($phase) {
 		global $dpdb;
         $projectid = $this->ProjectId();
@@ -1042,7 +1061,7 @@ class DpProject
 			$name = $pg['pagename'];
 			$vsn = $pg['version'];
 			$text .= (ExportPageHeader($pg['pagename']) . "\n");
-			$text .= PageVersionText($this->ProjectId(), $name, $vsn);
+			$text .= PageVersionText($this->ProjectId(), $name, $vsn) . "\n";
 		}
 		return $text;
 	}
@@ -1061,8 +1080,8 @@ class DpProject
 		foreach($rows as $row) {
 			$pagename = $row['pagename'];
 			$version  = $row['version'];
-			$text .= ExportPageHeader($pagename) . "\n";;
-			$text .= PageVersionText($projectid, $pagename, $version) . "\n";;
+			$text .= ExportPageHeader($pagename) . "\n";
+			$text .= PageVersionText($projectid, $pagename, $version) . "\n";
 		}
 		return $text;
 	}
@@ -1090,93 +1109,10 @@ class DpProject
 		    $text .= PageVersionText($this->ProjectId(), $name, $vsn);
 	    }
 	    return $this->PhaseExportText($roundid);
-//        global $dpdb;
-        /** @var DpProject $project */
-        // only people who can see names on the page details page
-        // can see names here.
-
-	    /*
-        if($exact) {
-            $textfield =
-                ($roundid == "OCR")
-                    ? "master_text"
-                    : ($roundid == "P1")
-                    ? "round1_text"
-                    : ($roundid == "P2")
-                        ? "round2_text"
-                        : ($roundid == "P3")
-                            ? "round3_text"
-                            : ($roundid == "F1")
-                                ? "round4_text"
-                                : "round5_text";
-        }
-        else {
-            switch($roundid) {
-                case "OCR":
-                    $textfield = "master_text";
-                    break;
-                case "P1":
-                    $textfield = "COALESCE(NULLIF(round1_text, ''),
-                                       master_text)";
-                    break;
-                case "P2":
-                    $textfield = "COALESCE(NULLIF(round2_text, ''),
-                                       NULLIF(round1_text, ''),
-                                       master_text)";
-                    break;
-                case "P3":
-                    $textfield = "COALESCE(NULLIF(round3_text, ''),
-                                       NULLIF(round2_text, ''),
-                                       NULLIF(round1_text, ''),
-                                       master_text)";
-                    break;
-                case "F1":
-                    $textfield = "COALESCE(NULLIF(round4_text, ''),
-                                       NULLIF(round3_text, ''),
-                                       NULLIF(round2_text, ''),
-                                       NULLIF(round1_text, ''),
-                                       master_text)";
-                    break;
-                case "F2":
-                case "PP":
-                case "newest":
-                case "":
-                    $textfield = "COALESCE( NULLIF(round5_text, ''),
-                                        NULLIF(round4_text, ''),
-                                        NULLIF(round3_text, ''),
-                                        NULLIF(round2_text, ''),
-                                        NULLIF(round1_text, ''),
-                                        master_text)\n";
-                    break;
-                default:
-                    die("Unanticipated round_id: $roundid");
-            }
-        }
-
-        $sql = "
-        SELECT  image,
-                round1_user,
-                round2_user,
-                round3_user,
-                round4_user,
-                round5_user,
-                $textfield AS pagetext
-        FROM {$this->ProjectId()}
-        ORDER BY fileid";
-
-        $rows = $dpdb->SqlRows($sql);
-
-        $text = "";
-        foreach($rows as $row) {
-            $text .= maybe_convert(rowtext($row, $proofers));
-        }
-        return $text;
-	    */
     }
 
     public function SavePPDownloadFile() {
         global $Context;
-//        $text = $this->RoundExportText("F2", TRUE, TRUE);
 	    $text = $this->PhaseExportText("F2") ;
         if($this->IsPPDownloadFile()) {
             unlink( $this->PPDownloadPath() );
@@ -1199,34 +1135,10 @@ class DpProject
         return file_exists($this->PPUploadPath());
     }
 
-//    public function IsPPVUploadFile() {
-//        return file_exists($this->PPVUploadPath());
-//    }
-
     private function ImageFilesInProjectDirectory() {
         $path = $this->ProjectPath();
         return glob("$path/*");
     }
-
-/*
-    public function NonPageFiles() {
-        global $dpdb;
-        $path = $this->ProjectPath();
-        $allfiles = glob("$path/*");
-        $images = $dpdb->SqlValues("
-            SELECT imagefile FROM pages WHERE projectid = '{$this->ProjectId()}'
-            ORDER BY imagefile");
-
-        $ary = array();
-        foreach($allfiles as $fname) {
-            $bname = basename($fname);
-            if(! in_array($bname, $images)) {
-                $ary[] = $bname;
-            }
-        }
-        return $ary;
-    }
-*/
 
 	// delete a file from the project directory
     public function DeleteProjectFile($filename) {
@@ -1300,134 +1212,13 @@ class DpProject
 
 	            WHERE pg.projectid = '$projectid'
                 ORDER BY pg.pagename");
-	        /*
-            $this->_pagerows = $dpdb->SqlRows("
-                SELECT
-                	pp.projectid,
-                	ppp.phase,
-                	ppp.pagename,
-                	pp.imagefile,
-                	ppp.username,
-                	ppp.version_time
-                FROM pages pp
-                LEFT JOIN page_versions ppp
-                	ON pp.projectid = ppp.projectid
-                	AND pp.pagename = ppp.pagename
-
-	            LEFT JOIN page_versions ppp0
-                	ON ppp.projectid = ppp0.projectid
-                	AND ppp.pagename = ppp0.pagename
-                	AND ppp.id < ppp0.id
-
-	            WHERE pp.projectid = '$projectid'
-	            	AND ppp0.id IS NULL
-                ORDER BY pagename");
-	        */
         }
         return $this->_pagerows;
     }
 
-/*
-	public function PageRows2($is_refresh = false) {
-		global $dpdb;
-		$projectid = $this->_projectid;
-
-		if(! isset($this->_pagerows) || $is_refresh) {
-			$this->_pagerows = $dpdb->SqlRows("
-                SELECT
-                    projectid,
-                    status,
-                    pagename AS fileid,
-                    pagename,
-                    imagefile AS image,
-                    imagefile,
-                    round1_user,
-                    round2_user,
-                    round3_user,
-                    round4_user,
-                    round5_user,
-
-                    round1_time,
-                    round2_time,
-                    round3_time,
-                    round4_time,
-                    round5_time
-
-                FROM project_pages
-                WHERE projectid = '$projectid'
-                ORDER BY pagename");
-		}
-		return $this->_pagerows;
-	}
-*/
-
     public function ProjectRow() {
         return $this->_row;
     }
-
-	/*
-    public function ActivePageRows() {
-        global $dpdb;
-        static $_rows;
-        if(! isset($_rows)) {
-            $_rows = $dpdb->SqlRows("
-                SELECT 
-                    projectid,
-                    fileid AS pagename,
-                    image,
-                    COALESCE( round5_user, round4_user,
-                       round3_user, round2_user,
-                       round1_user, ''
-                    ) AS username,
-
-                    COALESCE( round5_time, round4_time,
-                       round3_time, round2_time,
-                       round1_time, ''
-                    ) AS round_time,
-
-                    COALESCE(
-                        NULLIF(round5_text, ''),
-                        NULLIF(round4_text, ''),
-                        NULLIF(round3_text, ''),
-                        NULLIF(round2_text, ''),
-                        NULLIF(round1_text, ''),
-                        master_text
-                    ) AS active_text
-                FROM $this->_projectid
-                ORDER BY fileid");
-        }
-        return $_rows;
-    }
-
-	public function SetVersionCRC($pagename, $version, $val) {
-		global $dpdb;
-		$projectid = $this->ProjectId();
-		$sql = "
-			UPDATE page_versions
-			SET crc32 = ?
-			WHERE projectid = ?
-				AND pagename = ?
-				AND version = ?
-				";
-		$args = array(&$val, &$projectid, &$pagename, &$version);
-		$dpdb->SqlExecutePS($sql, $args);
-	}
-	*/
-
-//    public function OCRText() {
-//	    return $this->RoundText("PREP");
-//    }
-
-//    public function PageOCRRows() {
-//        global $dpdb;
-//	    return $dpdb->SqlRows("
-//	        SELECT pagename, imagefile, 0
-//		    FROM pages pp
-//		    JOIN page_versions pv
-//		    	ON pp.projectid = pv.projectid
-//		    WHERE projectid = '{$this->ProjectId()}'
-//		    AND version = 0");
-//    }
 
 	public function OCRText() {
 		return $this->RoundText("PREP");
@@ -1540,82 +1331,7 @@ class DpProject
 
 	    }
 	    return $dpdb->SqlRows($sql);
-	    /*
-        $ary = array();
-        if($this->RoundId() == "OCR") {
-            $ary[] = "master_text";
-        }
-        else {
-            $rdx = RoundIndexForId($roundid);
-            for($i = $rdx; $i >= 0; $i--) {
-                $ary[] = "NULLIF(".TextFieldForRoundIndex($i).", '')";
-            }
-        }
-
-        $sql = "
-			SELECT fileid AS pagename,
-                image AS imagefile,
-                COALESCE(
-                ".implode(", ", $ary)."
-                ) AS text,
-                CONCAT(
-                    CASE WHEN round1_user IS NULL OR round1_user = ''
-                        THEN '' ELSE CONCAT('\\\\', round1_user) END,
-                    CASE WHEN round2_user IS NULL OR round2_user = ''
-                        THEN '' ELSE CONCAT('\\\\', round2_user) END,
-                    CASE WHEN round3_user IS NULL OR round3_user = ''
-                        THEN '' ELSE CONCAT('\\\\', round3_user) END,
-                    CASE WHEN round4_user IS NULL OR round4_user = ''
-                        THEN '' ELSE CONCAT('\\\\', round4_user) END,
-                    CASE WHEN round5_user IS NULL OR round5_user = ''
-                        THEN '' ELSE CONCAT('\\\\', round5_user) END,
-                    '\\\\'
-                ) AS proofers
-                FROM $this->_projectid
-                ORDER BY fileid";
-        return $dpdb->SqlRows($sql);
-	    */
     }
-
-	/*
-	 * A page is added when we hae an image file and text.
-	 *
-	 * 1. Copy the image file into the project directory
-	 * 2. Archive the image file
-	 * 3. Add a pages record
-	 * 4. Add a page_versions record, version 0
-	 * 5. Copy the text file to a version file
-	 * 6. Archive the text file
-	 * 7. delete the image file
-	 * 8. delete the text file
-	 */
-
-	//
-	// 2
-	//
-
-	//
-	// 3
-	//
-
-
-	//
-	// 4 add pages record
-	//
-
-	//
-	// 5 add pages record
-	//
-
-
-	//
-	// 6 add pages record
-	//
-
-
-	//
-	// 7 add pages record
-	//
 
     public function Page($pagename) {
         if(!empty($pagename))
@@ -1703,23 +1419,6 @@ class DpProject
         return $this->ProjectId() . "_backup";
     }
 
-//    public function IsBackupTable() {
-//        global $dpdb;
-//        return $dpdb->IsTable($this->BackupTableName());
-//    }
-
-	/* unneeded */
-
-//    public function CreateBackupTable() {
-//        global $dpdb;
-//        $projectid = $this->ProjectId();
-//        $bkuptable = $this->BackupTableName();
-//        if($this->IsBackupTable()) {
-//            $dpdb->SqlExecute("DROP TABLE $bkuptable");
-//        }
-//        $dpdb->SqlExecute("CREATE TABLE $bkuptable SELECT * FROM $projectid");
-//    }
-
     public function CloneProject() {
         global $Context;
         global $dpdb;
@@ -1782,11 +1481,6 @@ class DpProject
         $this->SetPPHold();
         return $new_project_id;
     }
-
-//    public function CreateProjectTable() {
-//        global $Context;
-//        $Context->CreateProjectTable($this->ProjectId());
-//    }
 
 	public function IsActivePhase() {
 		switch($this->Phase()) {
