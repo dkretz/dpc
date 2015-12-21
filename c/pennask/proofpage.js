@@ -653,16 +653,17 @@ function InsertChar(c) {
 function eCharClick(e) {
     if(!e) { e = window.event; }
     var t = e.target || e.srcElement;
-    var c = t.value || t.innerHTML;
+    var val = t.value || t.textContent;
 
     if(t.className == "selector") {
         if(_active_charselector) {
             _active_charselector.style.border = "0";
         }
         _active_charselector = t;
+        //noinspection JSPrimitiveTypeWrapperUsage
         _active_charselector.style.border = "2px solid red";
-        $('pickers').innerHTML = char_pickers(c);
-        $('divcharshow').style.visibility = (c == "❦" ? "hidden" : "visible");
+        $('pickers').innerHTML = char_pickers(val);
+        $('divcharshow').style.visibility = (val == "❦" ? "hidden" : "visible");
         return true;
     }
 
@@ -671,8 +672,9 @@ function eCharClick(e) {
             _active_char.style.border = "0";
         }
         _active_char = t;
+        //noinspection JSPrimitiveTypeWrapperUsage
         t.style.border = "2px solid red";
-        InsertChar(c);
+        InsertChar(val);
     }
     return true;
 }
@@ -1377,6 +1379,15 @@ function scroll_to_find() {
 
     // set prepreview back without the span
     spanpreview.innerHTML = p2;
+}
+
+function eDeHyphen() {
+    var re = /(\b\S+)-\n(\S+)\s?/;
+    var rpl = "$1$2\r";
+    var s = SelectedText()
+        .replace(re, rpl);
+    ReplaceText(s);
+    return false;
 }
 
 function eHiliteQuotes() {
@@ -2094,10 +2105,6 @@ function GetZoom() {
     return val;
 }
 
-function saveLineHeight(val) {
-    setnamevalue("lineheight", val.toString());
-}
-
 function SaveZoom(val) {
     setnamevalue(hv() + "_zoom", val.toString());
 }
@@ -2183,7 +2190,9 @@ function show_wordcheck() {
 
     // var accepts = spanpreview.getElementsByTagName("accepted");
     var str = _rsp.pvwtext.replace('~~', '&')
-        .replace(/\s"\s/g, "<span class='spacey'>$&</span>");
+        .replace(/\s"\s/g, "<span class='spacey'>$&</span>")
+        .replace(/\s'\s/g, "<span class='spacey'>$&</span>")
+        .replace(/\s[,;:?!]/g, "<span class='spacey'>$&</span>");
 
     if(getIsPunc()) {
         str = applyIsPunc(str);
@@ -2512,9 +2521,13 @@ function getLineHeight() {
     }
 }
 
-function saveLineHeight(value) {
-    setnamevalue("lineheight", value);
+function saveLineHeight(val) {
+    setnamevalue("lineheight", val.toString());
 }
+
+//function saveLineHeight(value) {
+//    setnamevalue("lineheight", value);
+//}
 
 function setnamevalue(name, value) {
     var date = new Date();

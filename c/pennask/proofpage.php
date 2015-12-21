@@ -209,9 +209,9 @@ $csslink
 </table>
 </div> <!-- divFandR -->\n"
 
-. upload_widget_iframe($projectid, $pagename) . "
+//. upload_widget_iframe($projectid, $pagename) . "
 
-<div id='divleft'>
+. "<div id='divleft'>
     <div id='divprevimage'>
         <img id='imgprev' src='$previmgurl' alt=''>
     </div> <!-- divprevimage -->
@@ -308,19 +308,15 @@ $csslink
 //	}
 	echo "
         <img id='imggear' title='$prompt_gear' alt='$prompt_gear' src='gfx/gear.png'>
+
 		<div id='divicons' class='block'>
-			<input type='image' id='opt_submit_continue' name='opt_submit_continue'
-				title='$prompt_submit_continue' alt='$prompt_submit_continue' src='gfx/savenxt.png'>
-			<input type='image' id='opt_submit_quit' name='opt_submit_quit'
-				src='gfx/savequit.png' title='$prompt_submit_quit' alt='$prompt_submit_quit'>
-			<input type='image' id='opt_draft_continue' name='opt_draft_continue' title='$prompt_draft_continue' alt='$prompt_draft_continue'
-				src='gfx/save2.jpg'>
-			<input type='image' id='opt_draft_quit' name='opt_draft_quit' title='$prompt_draft_quit' alt='$prompt_draft_quit'
-				src='gfx/quit.png'>
-			<input type='image' id='opt_return_quit' name='opt_return_quit'
-				src='gfx/returnpage.png' alt='$prompt_return_quit'  title='$prompt_return_quit'>
-			<input type='image' id='opt_mark_bad' name='opt_mark_bad'
-				title='$prompt_mark_bad' alt='$prompt_mark_bad' src='$bad_icon'>
+			<input type='image' id='opt_submit_continue' name='opt_submit_continue'  src='gfx/savenxt.png'      title='$prompt_submit_continue'  alt='$prompt_submit_continue'>
+			<input type='image' id='opt_submit_quit'     name='opt_submit_quit'      src='gfx/savequit.png'      title='$prompt_submit_quit'     alt='$prompt_submit_quit'>
+			<input type='image' id='opt_draft_continue'  name='opt_draft_continue'   src='gfx/save2.jpg'         title='$prompt_draft_continue'  alt='$prompt_draft_continue'>
+			<input type='image' id='opt_draft_quit'      name='opt_draft_quit'       src='gfx/quit.png'          title='$prompt_draft_quit'      alt='$prompt_draft_quit'>
+			<input type='image' id='opt_return_quit'     name='opt_return_quit'      src='gfx/returnpage.png'    title='$prompt_return_quit'     alt='$prompt_return_quit'>
+			<input type='image' id='opt_mark_bad'        name='opt_mark_bad'         src='$bad_icon'             title='$prompt_mark_bad'        alt='$prompt_mark_bad'>
+
 		</div> <!-- divicons -->\n";
 
 	echo "
@@ -398,10 +394,16 @@ $csslink
             <button title='nowrap' onclick='return top.eSetNoWrap()'>
                  /* */ </button>
 
-            <button title='blockquote'
+            <button title='de-hyph'
                 onclick='return top.eSetBlockQuote()'>
                  /# #/ </button>";
 		}
+
+        else if(dkretz()) {
+            echo "
+            <button title='nowrap' onclick='return eDeHyph()'>
+                 /* */ </button>\n";
+        }
 
 		echo "
             <button title='uppercase'
@@ -437,6 +439,9 @@ $csslink
                                [Sidenote: ]</button>";
 		}
 		echo "
+            <button title='dehyphen' onclick='return top.eDeHyphen()'
+                title='Dehyphenate across line break. Be sure to include trailing space.'>
+				&gt;-&lt;</button>
             <button title='note' onclick='return top.eSetNote()'>
                 [** ]</button>
 
