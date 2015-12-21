@@ -21,9 +21,9 @@ $acceptwords        = Arg("acceptwords");
 $editor             = Arg("editor");
 $badreason          = Arg("badreason", "");
 
-if($editor != "") {
-	$User->SetInterface($editor);
-}
+//if($editor != "") {
+//	$User->SetInterface($editor);
+//}
 if(IsArg("opt_submit_continue_x")) {
 	$seltodo = "opt_submit_continue";
 }
@@ -34,7 +34,7 @@ else if(IsArg("opt_submit_quit_x")) {
 	$seltodo = "opt_submit_quit";
 }
 else if(IsArg("opt_draft_continue_x")) {
-		$seltodo = "opt_draft_continue";
+    $seltodo = "opt_draft_continue";
 }
 else if(IsArg("opt_draft_quit_x")) {
 	$seltodo = "opt_draft_quit";
@@ -48,29 +48,26 @@ $awords             = preg_split("/\t/", $acceptwords);
 $page               = new DpPage($projectid, $pagename);
 
 if(count($awords) > 0) {
-    $page->AcceptWordsArray($langcode, $awords);
+    $page->SuggestWordsArray($langcode, $awords);
 }
 
 /** @var DpPage $page */
-if(! $page->UserIsOwner()) {
+if(! $page->IsAvailable() && ! $page->UserIsOwner()) {
 	LogMsg("Owner is " . $page->Owner() . " and User is " . $User->Username() . "
 		Action: $seltodo
 		Projectid: $projectid
 		Page: $pagename
 		Phase: $phase");
-//    $errmsg = "You are trying to save a page that is not checked out to you.
-//        If you think this is an error, please post to the System Errors topic in the Forums.";
-//    die($errmsg);
 }
 
 switch($seltodo) {
     case "opt_draft_quit" :
-        $page->saveText($tatext);
+        $page->SaveText($tatext);
         redirect_to_project($projectid);
         break;
 
     case "opt_draft_continue" :
-        $page->saveText($tatext);
+        $page->SaveText($tatext);
         redirect_to_proof_page($projectid, $pagename);
         break;
 
