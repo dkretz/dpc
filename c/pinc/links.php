@@ -366,7 +366,8 @@ function url_for_proof_page($projectid, $pagename) {
 
 function url_for_smooth_reading() {
     global $code_url;
-    return "$code_url/tools/post_proofers/smooth_reading.php";
+    return "$code_url/tools/smooth.php";
+//    return "$code_url/tools/post_proofers/smooth_reading.php";
 }
 
 function link_to_smooth_reading($prompt, $isnewpage = false) {
@@ -409,15 +410,45 @@ function link_to_image_index($projectid, $prompt = "View images online", $is_new
     return link_to_url(url_for_image_index($projectid), $prompt, $is_new_tab);
 }
 
-function link_to_project_text($projectid, $phase = 'F2', $prompt = "", $isnew = false) {
-    return link_to_url(url_for_project_text($projectid, $phase), $prompt, $isnew);
+function link_to_view_project_text($projectid, $phase = 'latest', $prompt = "", $isnew = false) {
+    return link_to_url(url_for_view_text($projectid, $phase), $prompt, $isnew);
 }
 
-function url_for_project_text($projectid, $phase = "F2") {
+function url_for_view_text_and_images($projectid) {
     global $code_url;
-    return "$code_url/project_text.php"
+    return "$code_url/tools/pager.php"
+        . "?projectid=$projectid";
+}
+
+function link_to_view_text_and_images($projectid, $prompt = "View both", $is_new_tab = false) {
+    return link_to_url(url_for_view_text_and_images($projectid), $prompt, $is_new_tab);
+}
+
+function url_for_view_text($projectid, $phase, $include = "separator", $exact = false) {
+    global $code_url;
+    return "$code_url/textsrv.php"
+        . "?projectid=$projectid"
+        . "&amp;pagename=all"
+        . "&amp;include=$include"
+        . "&amp;exact=$exact"
+        . "&amp;phase=$phase";
+}
+
+function link_to_project_text($projectid, $phase, $prompt, $include = "separator", $exact = false) {
+    $is_new_tab = true;
+    return link_to_url(url_for_project_text($projectid, $phase, $include, $exact), $prompt, $is_new_tab);
+}
+
+function url_for_project_text($projectid, $phase = "F2", $include = "separator", $exact = false) {
+    global $code_url;
+    return "$code_url/proj_text_srv.php"
     . "?projectid=$projectid"
-    . "&amp;phase=$phase";
+    . "&amp;phase=$phase"
+    . ($exact ? "&amp;exact=$exact" : "")
+    . "&amp;include=$include";
+//    return "$code_url/project_text.php"
+//    . "?projectid=$projectid"
+//    . "&amp;phase=$phase";
 }
 /*
 function link_to_upload_smoothed_text($projectid, $prompt = "Upload smooth reading notes") {
@@ -453,10 +484,21 @@ function url_for_download_images($projectid) {
                     ."?projectid=$projectid"
                     ."&amp;dummy={$projectid}images.zip";
 }
-function link_to_download_images($projectid, $prompt="Download images", $isnew = false) {
+function link_to_zipped_images($projectid, $prompt="Download images", $isnew = false) {
     return link_to_url(url_for_download_images($projectid), $prompt, $isnew);
 }
 
+function link_to_pp_text($projectid, $prompt = "Download PP text", $isnew = false) {
+    return link_to_project_text($projectid, "PP", $prompt, $isnew);
+//    return link_to_url(url_for_pp_text($projectid), $prompt, $isnew);
+}
+
+//function url_for_pp_text($projectid) {
+//    global $code_url;
+//    return "$code_url/proj_text_srv.php"
+//            . "?projectid=$projectid"
+//            . "&amp;phase=PP";
+//}
 // -- diff
 
 //function url_for_version_diff($projectid, $pagename, $version) {
@@ -498,6 +540,14 @@ function link_to_wiki($prompt = "Wiki") {
 function url_for_forums() {
     global $forums_url;
     return $forums_url;
+}
+
+function link_to_forum_topic($topic_id, $prompt, $is_new_tab = false) {
+    return link_to_url(url_for_forum_topic($topic_id), $prompt, $is_new_tab);
+}
+function url_for_forum_topic($topic_id) {
+    global $forums_url;
+    return build_path($forums_url, "viewtopic.php?t={$topic_id}");
 }
 
 function link_to_forums($prompt = "Forums") {
@@ -684,7 +734,7 @@ function link_to_preferences($prompt = "My Preferences", $is_new_tab = false) {
 
 function url_for_page_detail($projectid) {
     global $code_url;
-    return "$code_url/tools/project_manager/page_detail.php"
+    return "$code_url/tools/project_manager/pagedetail.php"
         ."?projectid={$projectid}";
 }
 
@@ -695,7 +745,7 @@ function link_to_page_detail( $projectid, $prompt, $is_new_tab = false) {
 
 function url_for_page_detail_mine($projectid) {
     global $code_url;
-    return "$code_url/tools/project_manager/page_detail.php"
+    return "$code_url/tools/project_manager/pagedetail.php"
         ."?projectid={$projectid}"
         ."&amp;select_by_user=1";
 }
@@ -760,7 +810,7 @@ function url_for_page_text($projectid, $pagename, $roundid = "PREP") {
     return "$code_url/textsrv.php"
         ."?projectid=$projectid"
         ."&amp;pagename=$pagename"
-        ."&amp;roundid=$roundid";
+        ."&amp;phase=$roundid";
 }
 
 function url_for_page_log($projectid, $pagename) {
@@ -859,19 +909,23 @@ function url_for_team_stats($tid, $roundid = "") {
         : "$code_url/stats/teams/tdetail.php?tid=$tid";
 }
 
+function link_to_team_list($prompt = "List of Teams", $is_new_table = false) {
+    return link_to_url(url_for_team_list(), $prompt, $is_new_table);
+}
+
 function url_for_team_list() {
     global $stats_url;
     return $stats_url . "/teams/teamlist.php";
 }
-function url_for_team($tid) {
+function url_for_team_page($tid) {
     global $code_url;
     return "$code_url/stats/teams/tdetail.php?tid=$tid";
 }
 
 function link_to_team($tid, $prompt, $is_new_tab = false, $red = false) {
     return $red
-            ? red_link_to_url(url_for_team($tid), $prompt, $is_new_tab)
-            : link_to_url(url_for_team($tid), $prompt, $is_new_tab);
+            ? red_link_to_url(url_for_team_page($tid), $prompt, $is_new_tab)
+            : link_to_url(url_for_team_page($tid), $prompt, $is_new_tab);
 
 }
 
@@ -885,15 +939,15 @@ function url_for_quit_team($tid) {
     return $stats_url . "/teams/quitteam.php?tid=$tid";
 }
 
-function link_to_quit_team($tid) {
-    return red_link_to_url(url_for_quit_team($tid), "Quit");
-}
+//function link_to_quit_team($tid) {
+//    return red_link_to_url(url_for_quit_team($tid), "Quit");
+//}
 
 //"<a href='../teams/jointeam.php?tid={$id}'>$quit</a>\n";
-function link_to_join_team($tid) {
-    return link_to_url(url_for_join_team($tid), "Join");
+//function link_to_join_team($tid) {
+//    return link_to_url(url_for_join_team($tid), "Join");
+//}
 
-}
 function link_to_team_stats($tid, $roundid, $prompt = "") {
     if($prompt == "") {
         $prompt = $roundid;

@@ -303,7 +303,7 @@ class DpDb
         if($this->_is_time_queries) {
             $this->_marktime = microtime(true);
         }
-        if($this->IsEcho()) {
+        if($this->_is_echo_queries) {
             echo html_comment($sql);
         }
         $this->_sql = $sql;
@@ -357,6 +357,10 @@ class DpDb
         }
         if($this->_is_time_queries) {
             $this->_marktime = microtime(true);
+        }
+        if($this->_is_echo_queries) {
+            echo html_comment($sql);
+            echo html_comment(pdump($args));
         }
         $stmt = $this->_mysqli->prepare($sql);
         if(! $stmt) {

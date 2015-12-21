@@ -28,8 +28,8 @@ class DpProject
     protected $_projectid;
     protected $_text;
     protected $_row;
-    protected $_pagerows;
-    protected $_pages;
+//    protected $_pagerows;
+//    protected $_pages;
     protected $_page_objects;
     protected $_error_message = "";
     protected $_page_char_offset_array = array();
@@ -389,9 +389,9 @@ class DpProject
         return ProjectSmoothDownloadPath($this->ProjectId(), $extension);
     }
 
-	public function SmoothDownloadUrl($filename) {
-		return build_path(ProjectSmoothDownloadUrl($this->ProjectId()), $filename);
-	}
+//	public function SmoothDownloadUrl($filename) {
+//		return build_path(ProjectSmoothDownloadUrl($this->ProjectId()), $filename);
+//	}
 
     public function SmoothUploadPath() {
         global $User;
@@ -524,6 +524,9 @@ class DpProject
     public function RoundId() {
         if(! $this->Exists()) {
             return "";
+        }
+        switch($this->Phase()) {
+
         }
 	    return $this->Phase();
     }
@@ -733,21 +736,33 @@ class DpProject
 		return $_names;
 	}
 
-	/*
-	public function LastPageVersion($pagename) {
-		global $dpdb;
-		$projectid = $this->ProjectId();
-		$phase     = $this->Phase();
-		$sql = "
-			SELECT version
-			FROM page_last_versions
-			WHERE projectid = ?
-			AND pagename = ?
-		";
-		$args = array(&$projectid, &$pagename, &$phase);
-		return $dpdb->SqlOneValuePS($sql, $args);
-	}
-	*/
+    public function LastPageVersions() {
+        global $dpdb;
+        $projectid = $this->ProjectId();
+        return $dpdb->SqlRows("
+			SELECT pv.pagename, pv.version, pp.imagefile
+			FROM page_last_versions pv
+			JOIN pages pp
+            ON pv.projectid = pp.projectid
+                AND pv.pagename = pp.pagename
+			WHERE pv.projectid = '$projectid'
+			ORDER BY pv.pagename");
+    }
+
+    public function RoundPageVersions($roundid) {
+        global $dpdb;
+        $projectid = $this->ProjectId();
+        return $dpdb->SqlRows("
+			SELECT pv.pagename, pv.version, pp.imagefile
+			FROM page_versions pv
+			JOIN pages pp
+            ON pv.projectid = pp.projectid
+                AND pv.pagename = pp.pagename
+			WHERE pv.projectid = '$projectid'
+			    AND pv.phase = '$roundid'
+			    AND pv.task IN ('PROOF', 'FORMAT')
+			ORDER BY pv.pagename");
+    }
 
 	// Given a project, ad a new version for every page with phase, task, version state
 	private function ClonePageVersions( $phase, $task, $state, $username = "(auto)") {
@@ -1015,13 +1030,13 @@ class DpProject
 //        return $this->UploadPath();
 //    }
 
-    private function RoundsDownloadPath() {
-        return ProjectRoundsDownloadPath($this->ProjectId());
-    }
+//    private function RoundsDownloadPath() {
+//        return ProjectRoundsDownloadPath($this->ProjectId());
+//    }
 
-    private function IsPPDownloadFile() {
-        return file_exists($this->PPDownloadPath());
-    }
+//     function IsPPDownloadFile() {
+//        return file_exists($this->PPDownloadPath());
+//    }
 
     public function LastCompletedText() {
         global $dpdb;
@@ -1036,36 +1051,85 @@ class DpProject
         foreach($pgs as $pg) {
             $name = $pg['pagename'];
             $vsn = $pg['version'];
-            $text .= (ExportPageHeader($pg['pagename']) . "\n");
+            $text .= (ExportPageHeader($pg['pagename'], null) . "\n");
             $text .= PageVersionText($this->ProjectId(), $name, $vsn) . "\n";
         }
         return $text;
     }
 
-	public function PhaseExportText($phase) {
+    /*
+     * $include can be nothing, separator, names, or pagetag
+     * $exact is true or false
+     * $pagetags is true or false
+     */
+	public function PhaseExportText($phase, $include = "nothing", $exact = false) {
 		global $dpdb;
+        switch($phase) {
+            case "PP":
+            case "PPV":
+            case "POSTED":
+                $phase = "F2";
+                break;
+            default:
+                break;
+        }
         $projectid = $this->ProjectId();
 		$sql = "SELECT
-					pagename,
-					version
-			    FROM page_versions
-			    WHERE projectid = ?
-			    	AND phase = ?
-			    	AND task IN ('PROOF', 'FORMAT')
-			    	AND state = 'C'
-		        ORDER BY pagename";
+					pv.pagename,
+					pp.imagefile,
+					pv.version,
+					pv.state,
+					pv2.proofernames
+			    FROM page_versions pv
+			    JOIN pages pp
+			    ON pv.projectid = pp.projectid
+			        AND pv.pagename = pp.pagename
+			    LEFT JOIN (
+                    SELECT  projectid,
+                            pagename,
+                            GROUP_CONCAT(username) proofernames
+                    FROM page_versions
+                    WHERE state = 'C'
+                    GROUP BY projectid, pagename
+                    ORDER BY VERSION
+                ) pv2
+                ON pv.projectid = pv2.projectid
+                    AND pv.pagename = pv2.pagename
+			    WHERE pv.projectid = ?
+			    	AND pv.phase = ?
+			    	AND pv.task IN ('PROOF', 'FORMAT')
+		        ORDER BY pv.pagename";
         $args = array(&$projectid, &$phase);
 		$pgs = $dpdb->SqlRowsPS($sql, $args);
+
 		$text = "";
 		foreach($pgs as $pg) {
-			$name = $pg['pagename'];
-			$vsn = $pg['version'];
-			$text .= (ExportPageHeader($pg['pagename']) . "\n");
-			$text .= PageVersionText($this->ProjectId(), $name, $vsn) . "\n";
+            $name = $pg["pagename"];
+            $version  = (integer) $pg["version"];
+            if ($exact && $pg['state'] != "C") {
+                continue;
+            }
+            if($include == "nothing") {
+                $text .=  PageVersionText($this->ProjectId(), $name, $version) . "\n";
+                continue;
+            }
+
+            // $include is "separator" or "names"
+            $names = explode(",", $pg["proofernames"]);
+
+			$text .= ($include == "separator")
+                        ? ExportPageHeader($pg['pagename'], null) . "\n"
+                        : ExportPageHeader($pg['pagename'], $names) . "\n";
+            if($include == "pagetag") {
+                $text .= PageTag($pg['imagefile']);
+            }
+            $text .= PageVersionText($this->ProjectId(), $name, $version) . "\n";
 		}
 		return $text;
 	}
 
+/*
+ * problem - excludes last versions not completed
 	public function ExportPPText() {
 		global $dpdb;
 		$projectid = $this->ProjectId();
@@ -1119,10 +1183,11 @@ class DpProject
         }
         $Context->ZipSaveString($this->ProjectId() . ".txt", $text);
     }
+*/
 
-    private function PPDownloadPath() {
-        return $this->RoundsDownloadPath();
-    }
+//    private function PPDownloadPath() {
+//        return $this->RoundsDownloadPath();
+//    }
 
     public function PPUploadPath() {
         return ProjectPPUploadPath($this->ProjectId());
@@ -1150,6 +1215,10 @@ class DpProject
     }
 
     // cached as $this->_pages
+    /*
+     * only used in cleanup.php and guiprep.php
+     */
+    /*
     public function PageObjects() {
         global $dpdb;
 
@@ -1179,6 +1248,22 @@ class DpProject
         }
         return $this->_pages;
     }
+    */
+
+    public function ImagePaths() {
+        global $dpdb;
+        $projectid = $this->ProjectId();
+        $sql = "SELECT imagefile FROM pages
+                WHERE projectid = ?
+                ORDER BY pagename";
+        $args = array(&$projectid);
+        $names = $dpdb->SqlValuesPS($sql, $args);
+        $aret = array();
+        foreach($names as $a) {
+            $aret[] = build_path($this->ProjectPath(), $a);
+        }
+        return $aret;
+    }
 
     public function ImagePath($filename) {
         return $filename == ""
@@ -1187,14 +1272,15 @@ class DpProject
     }
 
     // queries single table only (pages, or "project" table)
-    // cached as $this->_pagerows
+    // cached as $_pagerows
     // returns old fieldnames (plus "active_text");
     public function PageRows($is_refresh = false) {
+        static $_pagerows;
         global $dpdb;
         $projectid = $this->_projectid;
 
-        if(! isset($this->_pagerows) || $is_refresh) {
-	        $this->_pagerows = $dpdb->SqlRows("
+        if(! isset($_pagerows) || $is_refresh) {
+	        $_pagerows = $dpdb->SqlRows("
                 SELECT
                 	pg.projectid,
                 	pv.phase,
@@ -1213,7 +1299,7 @@ class DpProject
 	            WHERE pg.projectid = '$projectid'
                 ORDER BY pg.pagename");
         }
-        return $this->_pagerows;
+        return $_pagerows;
     }
 
     public function ProjectRow() {
@@ -1286,6 +1372,19 @@ class DpProject
     public function PageActiveTextArray($phase = "") {
         global $dpdb;
 
+        switch($phase) {
+            case "PREP":
+            case "P1":
+            case "P2":
+            case "P3":
+            case "F1":
+            case "F2":
+                break;
+            default:
+                $phase = "";
+                break;
+        }
+
 	    if($phase == "") {
 			$sql = "
 				SELECT pg.pagename,
@@ -1333,6 +1432,15 @@ class DpProject
 	    return $dpdb->SqlRows($sql);
     }
 
+    public function IsPage($pagename) {
+        global $dpdb;
+        $projectid = $this->ProjectId();
+        return $dpdb->SqlExists("
+            SELECT 1 FROM pages
+            WHERE projectid = '$projectid'
+            AND pagename = '$pagename'");
+    }
+
     public function Page($pagename) {
         if(!empty($pagename))
             return new DpPage($this->ProjectId(), $pagename);
@@ -1342,12 +1450,17 @@ class DpProject
         }
     }
 
+/*
     public function FirstPage() {
         $rows = $this->PageRows();
         $firstname = $rows[0]["fileid"];
         return new DpPage($this->ProjectId(), $firstname);
     }
+*/
 
+/*
+ *  only used in zip_images.php
+ *
     public function ProjectPages() {
         static $pgs ;
 
@@ -1361,6 +1474,7 @@ class DpProject
         }
         return $pgs;
     }
+*/
 
 
 	public function PageCount() {
@@ -1482,7 +1596,7 @@ class DpProject
         return $new_project_id;
     }
 
-	public function IsActivePhase() {
+	public function IsRoundPhase() {
 		switch($this->Phase()) {
 			case "P1":
 			case "P2":
@@ -2321,6 +2435,8 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
             WHERE pp.image = '$imagefile'";
         return $dpdb->SqlOneValue($sql);
     }
+
+	// DATE_FORMAT(FROM_UNIXTIME(phase_change_date), '%b %e %Y %H:%i') phase_date,
 
     public function ProoferRoundImageFileAfter($imagefile, $roundid) {
         global $dpdb;

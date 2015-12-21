@@ -14,8 +14,10 @@ error_reporting(E_ALL);
 class DpContext {
 	//    private $_languages;
 //	private $_phaserows;
+	/** @var Phase[] $_phases */
 	private $_phases;
 	private $_iphases;
+	/** @var Round[] $_rounds */
 	private $_rounds;
 	private $_irounds;
 	private $_holds;
@@ -192,8 +194,9 @@ class DpContext {
 		global $dpdb;
 
 		return $dpdb->SqlOneValue( "
-            SELECT COUNT(1) FROM projects
-            WHERE state = 'proj_post_complete'" );
+            SELECT COUNT(DISTINCT postednum) FROM projects
+            WHERE phase = 'POSTED'" );
+
 	}
 
 	/*
@@ -342,6 +345,17 @@ class DpContext {
             WHERE username = '$username'" );
 	}
 
+	public static function TeamExists( $teamname ) {
+		global $dpdb;
+		if ( empty( $teamname ) ) {
+			return false;
+		}
+
+		return $dpdb->SqlExists( "
+            SELECT 1 FROM teams
+            WHERE teamname = '$teamname'" );
+	}
+
 	public function TransientDirectory() {
 		return TEMP_DIR;
 	}
@@ -398,6 +412,7 @@ class DpContext {
 		}
 
 		send_file( $zippath );
+		unlink($zippath);
 	}
 
 	/*
@@ -420,7 +435,7 @@ class DpContext {
 
 	public function ZipSendFileArray( $stub, $apaths ) {
 		$zipfile = $stub . ".zip";
-		$zippath = build_path( TEMP_DIR, $zipfile );
+		$zippath = build_path( TEMP_DIR, "zip/$zipfile" );
 		@unlink( $zippath );  // in case anything from before
 		$zip = new ZipArchive();
 		if ( ! ( $zip->open( $zippath, ZIPARCHIVE::CREATE ) ) ) {
@@ -437,6 +452,7 @@ class DpContext {
 			die( "zip error on close." );
 		}
 		send_file( $zippath );
+		unlink($zippath);
 	}
 
 	/*
@@ -606,6 +622,28 @@ class DpContext {
         /** @var DpPhpbb3 $bb  */
         $bb->MoveTopicForumId($topicid, $forumid);
     }
+
+	/** @var DpTeam $team */
+	public function CreateTeamTopic($team) {
+		$subj = "Create " . $team->TeamName() . " Forum Topic";
+		$teamname = $team->TeamName();
+		$creator = $team->CreatedBy();
+		$info = $team->Info();
+		$url = url_for_team_stats($team->Id());
+
+		$msg = "
+Team Name: $teamname
+Created By: $creator`
+
+Info: $info
+
+Team Page: $url
+Use this area to have a discussion with your fellow teammates! :-Dp";
+
+		$id = $this->CreateForumThread($subj, $msg, $creator);
+        return $id;
+	}
+
 
     public function InstalledLanguages() {
     }

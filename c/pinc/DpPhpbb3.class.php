@@ -55,7 +55,7 @@ class DpPhpbb3
 //    }
 
     public function __destruct() {
-    }
+}
     
 //    public function IsRegistered() {
 //        global $user;
@@ -115,6 +115,10 @@ class DpPhpbb3
             : $user->data['user_lang'];
     }
 
+    public function DataUserName() {
+        global $user;
+        return $user->data['username_clean'];
+    }
     public function UserName() {
         return $this->_username;
     }

@@ -30,8 +30,8 @@ error_reporting(E_ALL);
  *   left, right, pager
  *   sortkey='fieldname'
  *   if table has class 'no_tr_for_th' then suppress <tr> for <th>
- *   <tr> for column headings has class 'colhead'
- *    (i.e. table.dptable.no_tr_for_th tr.colhead { display: none; }
+ *   <tr> for column headings has class 'colheadings'
+ *    (i.e. table.dptable.no_tr_for_th tr.colheadings { display: none; }
  *   sorttable_nosort suppresses a column for sorting
  */
 class DpTable
@@ -122,9 +122,10 @@ class DpTable
     }
 
     public function StrClass() {
-        return $this->_suppress_column_headings
-                ? "no_tr_for_th"
-                : implode(" ", $this->_class);
+        if($this->_suppress_column_headings) {
+            $this->_class[] = "no_tr_for_th";
+        }
+        return implode(" ", $this->_class);
     }
 
     public function NoColumnHeadings() {
@@ -168,9 +169,8 @@ class DpTable
         return $this->_captions;
     }
 
-    public function AddCaption( $text, $ncol = 1, $class = null, $title = null) {
-        $this->_captions[] = new DpTableCaption( 
-                    $text, $ncol, $class, $title ) ;
+    public function AddCaption( $text, $ncol = 1, $class = null, $tooltip = null) {
+        $this->_captions[] = new DpTableCaption( $text, $ncol, $class, $tooltip ) ;
     }
 
     public function SetPage($page_num) {
@@ -248,8 +248,12 @@ class DpTable
             . " class='{$this->StrClass()}'>\n";
 
         $colcount = $this->ColumnCount();
-        if($this->_table_title) {
-            $str_out .= "<tr><th colspan='$colcount' class='table_title'>" . $this->_table_title . "</th></tr>\n";
+
+        // if there is a table title, it gets the first row. The first row only gets one cell.
+        // The row <tr> gets class "table_title" and the cell gets "<th>" not "<td>".
+
+        if($this->_table_title != "") {
+            $str_out .= "<tr class='table_title'><th colspan='$colcount' class='table_title'>" . $this->_table_title . "</th></tr>\n";
         }
         if($this->IsPaging()) {
             $pagenum = $this->PageNumber();
@@ -270,7 +274,7 @@ class DpTable
         }
 
         // first the captions above the column headings
-        $str_out .= $this->StrCaptions($isnumbered);
+        $str_out .= $this->StrCaptions();
         // then the column headings
         $str_out .= $this->StrHeadings($isnumbered);
 	    // then the QBE row
@@ -314,12 +318,16 @@ class DpTable
      * @return string
      */
 
+    // A row of Captions above Headings.
+    // emits "<tr class='captions'>" ... captions ... "</tr>".
+    // If a numbered table, prepend one blank cell "th".
+    // Then concatenate the captions' StrCaption properties.
     private function StrCaptions() {
         if(count($this->_captions) == 0) {
             return "";
         }
 
-        $s = "<tr>\n";
+        $s = "<tr class='captions'>\n";
         if($this->_is_numbered) {
             $s .= "<th> &nbsp; </th>\n";
         }
@@ -327,7 +335,7 @@ class DpTable
             /** @var DpTableCaption $cap */
             $s .= $cap->StrCaption();
         }
-        $s .= "</tr>\n";
+        $s .= "</tr>  <!-- (class) captions --> \n";
         return $s;
     }
 
@@ -348,9 +356,13 @@ class DpTable
 		return $s;
 	}
 
+    // Headers Row - Column Headers
+    // The row "<tr>" gets class "colheadings"
+    // If it's numbered, a cell is added at the left with blank content
+    // Then concatenate the StrCaption properties of the columns.
     private function StrHeadings($isnumbered = false) {
 
-        $s = "<tr class='colhead'>\n";
+        $s = "<tr class='colheadings'>\n";
         if($isnumbered)
             $s .= "<th> &nbsp;</th>\n";
         foreach($this->_columns as $col) {
@@ -461,22 +473,32 @@ class DpTableCaption
 		return " colspan='" . $this->_colcount . "'";
 	}
 
+    // The Caption emission for one Caption.
+    // If it's a function:
+    //    the function needs to emit an entire "<th....>...</th>" unit
+    // Otherwise:
+    // emit "<th" . " class='class class ...'"
+    //            . " colspan='n'"
+    //            . " title='tooltip'"
+    //            . "</th".
     public function StrCaption() {
-	    $s = "<th";
+        $s = "";
 	    if(is_callable($this->_class)) {
-		    return call_user_func($this->_class, $this->_caption );
+            $s .= call_user_func($this->_class, $this->_caption );
 		}
-
-	    if(count($this->_class) > 0) {
-		    $s .= " class='{$this->StrClass()}'";
-	    }
-	    if($this->_colcount > 1) {
-		    $s .= $this->StrColspan();
-	    }
-        if($this->_tooltip) {
-            $s .= " title='{$this->_tooltip}'";
+        else {
+            $s = "<th";
+            if(count($this->_class) > 0) {
+                $s .= " class='{$this->StrClass()}'";
+            }
+            if($this->_colcount > 1) {
+                $s .= $this->StrColspan();
+            }
+            if($this->_tooltip) {
+                $s .= " title='{$this->_tooltip}'";
+            }
+            $s .= ">{$this->_caption}</th>\n";
         }
-        $s .= ">{$this->_caption}</th>\n";
         return $s;
     }
 }

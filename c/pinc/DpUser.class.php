@@ -27,12 +27,12 @@ class DpUser
     protected function init($username) {
         global $dpdb;
 
-	    if(! $this->_bb->Exists()) {
-		    die( "Cannot find user $username in phpBB." );
+        $is_dp_user = DpContext::UserExists($username);
+	    if(! $is_dp_user ) {
+		    die( "Cannot find user $username in Forum." );
 	    }
         $this->_username = $username;
 
-	    $is_dp_user = DpContext::UserExists($username);
 
 	    // if not in our database
         if( ! $is_dp_user ) {
@@ -41,17 +41,19 @@ class DpUser
 
 	        $sql = "
 					INSERT INTO users
-						(
-							username,
-							u_intlang,
-							t_last_activity,
-							date_created)
+                    (
+                        username,
+                        u_intlang,
+                        t_last_activity,
+                        date_created
+                    )
 					VALUES
-						(
-							?,
-							?,
-							UNIX_TIMESTAMP(),
-							UNIX_TIMESTAMP())";
+                    (
+                        ?,
+                        ?,
+                        UNIX_TIMESTAMP(),
+                        UNIX_TIMESTAMP()
+                    )";
 	        $args = array(&$username, &$lang);
 	        if($dpdb->SqlExecutePS($sql, $args) != 1) {
 		        LogMsg("Create DP User Failed");
@@ -80,9 +82,6 @@ class DpUser
                     u.emailupdates,
                     u.u_neigh,
                     u.u_top10,
-                    u.team_1,
-                    u.team_2,
-                    u.team_3,
                     u.credits
             FROM users u
             WHERE u.username = '$username'";
@@ -185,155 +184,58 @@ class DpUser
 		return 1;
 	}
 
-    public function UserTeam1() {
-        static $o = null;
-        if(! $o && $this->Team1() > 0) {
-            $o = new DpTeam($this->Team1());
-        }
-        return $o;
-    }
-
     public function IsTeamMemberOf($id) {
-        return $this->_row['team_1'] == $id
-            or $this->_row['team_2'] == $id
-            or $this->_row['team_3'] == $id;
+        global $dpdb;
+        $username = $this->Username();
+        return $dpdb->SqlOneValuePS(
+            "SELECT COUNT(1) FROM users_teams
+            WHERE username = ? AND team_id = ?",
+            array(&$username, &$id));
     }
 
-    public function UserTeams() {
-        $ary = array();
-        if($this->Team1()) {
-            $ary[] = $this->UserTeam1();
-        }
-        if($this->Team2()) {
-            $ary[] = $this->UserTeam2();
-        }
-        if($this->Team3()) {
-            $ary[] = $this->UserTeam3();
-        }
-        return $ary;
-    }
-
-    public function UserTeam2() {
-        static $o = null;
-        if(! $o && $this->Team2() > 0) {
-            $o = new DpTeam($this->Team2());
-        }
-        return $o;
-    }
-
-    public function UserTeam3() {
-        static $o = null;
-        if(! $o && $this->Team3() > 0) {
-            $o = new DpTeam($this->Team3());
-        }
-        return $o;
-    }
-
-    public function Team1() {
-        return $this->_row['team_1'];
-    }
-
-    public function Team2() {
-        return $this->_row['team_2'];
-    }
-
-    public function Team3() {
-        return $this->_row['team_3'];
+    public function TeamIDs() {
+        global $dpdb;
+        $username = $this->Username();
+        return $dpdb->SqlValues(
+            "SELECT team_id FROM users_teams
+            WHERE username = '$username'");
     }
 
     public function QuitTeamId($tid) {
         global $dpdb;
         $username = $this->Username();
 
-        if($this->Team3() == $tid) {
-            $dpdb->SqlExecute("
-                UPDATE users
-                SET team_3 = 0
-                WHERE username = '$username'");
-            $this->_row['team_3'] = 0;
-            return;
-        }
-        if($this->Team2() == $tid) {
-            $dpdb->SqlExecute("
-                UPDATE users
-                SET team_2 = team_3,
-                    team_3 = 0
-                WHERE username = '$username'");
-            $this->_row['team_2'] = $this->_row['team_3'];
-            $this->_row['team_3'] = 0;
-            return;
-        }
-        if($this->Team1() == $tid) {
-            $dpdb->SqlExecute("
-                UPDATE users
-                SET team_1 = team_2,
-                    team_2 = team_3,
-                    team_3 = 0
-                WHERE username = '$username'");
-            $this->_row['team_1'] = $this->_row['team_2'];
-            $this->_row['team_2'] = $this->_row['team_3'];
-            $this->_row['team_3'] = 0;
-        }
+        $dpdb->SqlExecutePS("
+            DELETE FROM users_teams
+            WHERE username = ?
+                AND team_id = ?",
+            array(&$username, &$tid));
     }
 
     public function AddTeamId($id) {
-       if($this->Team1() == 0) {
-           $this->SetTeam(1, $id);
-       }
-       else if($this->Team2() == 0) {
-           $this->SetTeam(2, $id);
-       }
-       else if($this->Team3() == 0) {
-           $this->SetTeam(3, $id);
-       }
-    }
-
-    /**
-     * @param $index
-     * @param $id
-     */
-    private function SetTeam($index, $id) {
         global $dpdb;
-        $username = $this->Username();
+        $dpdb->SetEcho();
+        dump($this->TeamCount());
+        if($this->TeamCount() >= 3)
+            return;
 
-        switch($index) {
-            case 1:
-                $strindex = "team_1";
-                break;
-            case 2:
-                $strindex = "team_2";
-                break;
-            case 3:
-                $strindex = "team_3";
-                break;
-            default:
-                return;
+        dump($id);
+        if($this->IsTeamMemberOf($id)) {
+            return;
         }
-        $sql = "UPDATE users
-                SET $strindex = ?
-                WHERE username = ?";
-        $args = array(&$id, &$username);
+        $username = $this->Username();
+        $sql = "
+            INSERT INTO users_teams
+                ( username, team_id, create_time)
+            VALUES
+            ( ?, ?, CURRENT_TIMESTAMP())";
+        dump($sql);
+        $args = array(&$username, &$id);
         $dpdb->SqlExecutePS($sql, $args);
     }
 
     public function ClearTeam($teamnum) {
-        global $dpdb, $User;
-        switch($teamnum) {
-            case 1:
-                $teamfield = "team_1";
-                break;
-            case 2:
-                $teamfield = "team_2";
-                break;
-            case 3:
-                $teamfield = "team_3";
-                break;
-            default:
-                return;
-        }
-        $dpdb->SqlExecute("
-            UPDATE users SET $teamfield = 0
-            WHERE username = '{$User->Username()}'");
+        $this->QuitTeamId($teamnum);
     }
 
 	public function &Credits() {
@@ -352,7 +254,7 @@ class DpUser
 		$sql = "UPDATE users SET credits = ?
 				WHERE username = ?";
 		$args = array(&$credstr, &$username);
-		$dpdb->SqlExecute($sql, $args);
+		$dpdb->SqlExecutePS($sql, $args);
 	}
 	public function SetBoolean($credit, $val) {
 		$creds = $this->Credits();
@@ -877,14 +779,8 @@ class DpUser
 
     public function Teams() {
         $t = array();
-        if($this->Team1() != "") {
-            $t[] = new DpTeam($this->Team1());
-        }
-        if($this->Team2() != "") {
-            $t[] = new DpTeam($this->Team2());
-        }
-        if($this->Team3() != "") {
-            $t[] = new DpTeam($this->Team3());
+        foreach($this->TeamIDs() as $tid) {
+            $t[] = new DpTeam($tid);
         }
         return $t;
     }
@@ -1075,26 +971,18 @@ class DpTeam
         global $dpdb;
 
         $this->_row = $dpdb->SqlOneRow("
-            SELECT ut.id,
-                   ut.teamname,
-                   ut.team_info,
-                   ut.webpage,
-                   ut.ownername,
-                   ut.createdby,
-                   ut.created,
-                   FROM_UNIXTIME(ut.created) created_str,
-                   DATEDIFF(CURRENT_DATE(), DATE(FROM_UNIXTIME(ut.created))) created_days_ago,
-                   ut.member_count,
-                   ut.active_members,
-                   ut.daily_average,
-                   ut.icon,
-                   ut.avatar,
-                   ut.topic_id,
-                   ut.latest_user_name
-            FROM user_teams ut
-            LEFT JOIN users uown ON ut.ownername = uown.username
-            LEFT JOIN users ucre ON ut.createdby = ucre.username
-            WHERE ut.id = $team_id");
+            SELECT t.team_id,
+                   t.teamname,
+                   t.team_info,
+                   t.createdby,
+                   t.created_time,
+                   DATE(FROM_UNIXTIME(t.created_time)) created_date,
+                   DATEDIFF(CURRENT_DATE(), DATE(FROM_UNIXTIME(t.created_time))) created_days_ago,
+                   t.topic_id
+            FROM teams t
+            LEFT JOIN users ucre ON t.createdby = ucre.username
+            LEFT JOIN users_teams ut ON t.team_id = ut.team_id
+            WHERE t.team_id = $team_id");
     }
 
     public function Exists() {
@@ -1105,7 +993,7 @@ class DpTeam
         return $this->TeamName();
     }
 
-    public function TeamName() {
+   public function TeamName() {
         return $this->_row["teamname"];
     }
 
@@ -1114,96 +1002,52 @@ class DpTeam
     }
 
     public function Id() {
-        return $this->_row['id'];
+        return $this->_row['team_id'];
     }
 
-    public function RetiredMembers() {
-        return $this->MemberCount() - $this->ActiveMembers();
-    }
-
-    public function ActiveMembers() {
-        return $this->_row['active_members'];
-    }
+//    public function RetiredMembers() {
+//        return $this->MemberCount() - $this->ActiveMembers();
+//    }
+//
+//    public function ActiveMembers() {
+//        return $this->_row['active_members'];
+//    }
 
     public function MemberCount() {
         global $dpdb;
         return
             $dpdb->SqlOneValue("
-            SELECT COUNT(1) FROM users
-            WHERE team_1 = {$this->Id()}")
-            +
-            $dpdb->SqlOneValue("
-            SELECT COUNT(1) FROM users
-            WHERE team_2 = {$this->Id()}")
-            +
-            $dpdb->SqlOneValue("
-            SELECT COUNT(1) FROM users
-            WHERE team_3 = {$this->Id()}");
+            SELECT COUNT(1) FROM users_teams
+            WHERE team_id = {$this->Id()}");
     }
 
-    private function AvatarFile() {
-        return $this->_row['avatar'];
-    }
-
-    public function AvatarUrl() {
-        global $team_avatars_url;
-        return build_path($team_avatars_url, $this->AvatarFile());
-    }
-
-    public function AvatarLink($prompt = "") {
-        return link_to_url($this->AvatarUrl(), $prompt);
-    }
-
-    public function IconFile() {
-        return $this->_row['icon'];
-    }
-
-    public function IconUrl() {
-        global $team_icons_url;
-        return build_path($team_icons_url, $this->IconFile());
-    }
-
-    public function IconLink($prompt = "") {
-        return link_to_url($this->IconUrl(), $prompt);
-    }
-
-    public function OwnerId() {
-        return $this->_row['owner_id'];
-    }
-
-    public function OwnerName() {
-        return $this->_row['ownername'];
-    }
-
-    public function CreatorId() {
-        return $this->_row['creatorid'];
-    }
+//    private function AvatarFile() {
+//        return $this->_row['avatar'];
+//    }
 
     public function CreatedBy() {
         return $this->_row['createdby'];
     }
 
-    public function CreatedStr() {
-        return $this->_row['created_str'];
+    public function CreatedDate() {
+        return $this->_row['created_date'];
     }
 
-    public function TopicId() {
+    private function TopicId() {
         return $this->_row['topic_id'];
+    }
+
+    private function SetTopicId($id) {
+        global $dpdb;
+        $tid = $this->Id();
+        $sql = "UPDATE teams SET topic_id = ?
+                WHERE team_id = ?";
+        $args = array(&$id, &$tid);
+        $dpdb->SqlExecutePS($sql, $args);
     }
 
     public function Info() {
         return $this->_row['team_info'];
-    }
-
-    public function WebPage() {
-        return $this->_row['webpage'];
-    }
-
-    public function MemberRank() {
-        global $dpdb;
-        return $dpdb->SqlOneValue("
-        SELECT 1 + COUNT(1) FROM user_teams
-        WHERE member_count > {$this->MemberCount()}");
     }
 
     public function RoundPageCount($roundid) {
@@ -1232,6 +1076,48 @@ class DpTeam
             WHERE round_id = 'P2'
                 AND team_id = {$this->Id()}
             )");
+    }
+
+    public function TopicLink($prompt) {
+        global $Context;
+        $id = $this->TopicId();
+        if(! $id) {
+            $id = $Context->CreateTeamTopic($this);
+            $this->SetTopicId($id);
+        }
+        assert($id);
+        return link_to_forum_topic($id, $prompt);
+    }
+
+    public function StatsLink($phase) {
+//        global $Context;
+//        $id = $this->TopicId();
+//        if(! $id) {
+//            $id = $Context->CreateTeamTopic($this);
+//            $this->SetTopicId($id);
+//        }
+//        assert($id);
+        return link_to_team_stats($this->Id(), $phase);
+    }
+
+    public function CreateTeamTopic() {
+        global $Context;
+        $subj = $this->TeamName();
+        $teamname = $this->TeamName();
+        $creator = $this->CreatedBy();
+        $info = $this->Info();
+        $url = url_for_team_page($this->Id());
+
+        $msg = "
+Team Name: $teamname
+Created By: $creator
+
+Info: $info
+
+Team Page: $url
+Use this area to have a discussion with your fellow teammates! :-Dp";
+
+        $Context->CreateTeamTopic($subj, $msg, $creator);
     }
 }
 

@@ -1176,8 +1176,59 @@ function ProjectArchivePath($projectid) {
     return $path;
 }
 
-function ProjectSmoothDownloadUrl($projectid) {
-	return build_path(ProjectUrl($projectid), $projectid . "_smooth_avail.zip");
+//function ProjectSmoothDownloadUrl($projectid) {
+//	return build_path(ProjectUrl($projectid), $projectid . "_smooth_avail.zip");
+//}
+
+function SmoothZipFileName($projectid) {
+    return $projectid . "_smooth_avail.zip";
+}
+function SmoothZipFilePath($projectid) {
+    return build_path(ProjectPath($projectid), SmoothZipFileName($projectid));
+}
+function SmoothDirectoryPath($projectid) {
+    return build_path(ProjectPath($projectid), "smooth");
+}
+
+function UnzipSmoothZipFile($projectid) {
+    $dest = SmoothDirectoryPath($projectid);
+    if(file_exists($dest)) {
+        return;
+    }
+    mkdir($dest);
+    chmod($dest, 0777);
+    $zip = new ZipArchive();
+    $zip->open(SmoothZipFilePath($projectid));
+    $zip->extractTo($dest);
+}
+function ProjectSmoothDownloadUrls($projectid) {
+    $dir = build_path(SmoothDirectoryPath($projectid), "*");
+    $ary = glob("$dir");
+    $rslt = array();
+    $smoothurl = build_path(ProjectUrl($projectid), "smooth");
+    foreach($ary as $path) {
+        if(is_dir($path)) {
+            continue;
+        }
+        $filename = basename($path);
+        $type = extension($path);
+        $url = build_path($smoothurl, $filename);
+        $rslt[$type] = $url;
+    }
+    return $rslt;
+}
+function ProjectSmoothDownloadPaths($projectid) {
+    $dir = build_path(ProjectPath($projectid), "smooth");
+    $ary = glob($dir);
+    $rslt = array();
+    foreach($ary as $path) {
+        if(is_dir($path)) {
+            continue;
+        }
+        $type = extension($path);
+        $rslt[$type] = $path;
+    }
+    return $rslt;
 }
 
 function ProjectSmoothDownloadPath($projectid, $extension) {
@@ -1207,11 +1258,13 @@ function ProjectPagePath($projectid, $pagename) {
 }
 
 function ExportPageHeader($pagename, $proofers = null) {
-	if(is_null($proofers)) {
-		$proofers = array( "", "", "", "", "");
-	}
-	$str = implode(" \\ ", $proofers);
-	$str = "-----File: $pagename ($str) ---";
+//	if(is_null($proofers)) {
+//		$proofers = array( "", "", "", "", "");
+//	}
+    $str = is_array($proofers)
+        ? "(" . implode(" \\ ", $proofers) . ")"
+        : "";
+	$str = "-----File: $pagename $str ---";
 	$str = str_pad($str, 75, "-", STR_PAD_RIGHT);
 	return $str;
 }
@@ -1303,9 +1356,8 @@ function IsArg($arg, $default = false) {
 
 // we only take positive integers
 function ArgInt($arg, $default = 0) {
-    return preg_match("/[^0-9]/", trim($arg))
-        ? $default
-        : $arg;
+    $value = Arg($arg, $default);
+    return (int) $value;
 }
 
 function ArgBoolean($arg, $default = false) {
@@ -1326,8 +1378,33 @@ function ArgBoolean($arg, $default = false) {
     }
 }
 
-function ArgRoundId($default = "") {
-    return Arg("round_id", $default);
+function PhaseRound($phase) {
+    switch($phase) {
+        case "PREP":
+            return "OCR";
+        case "P1":
+        case "P2":
+        case "P3":
+        case "F1":
+        case "F2":
+            return $phase;
+        default:
+            return "F2";
+    }
+}
+
+function ArgRound($default = "") {
+    $round = Arg("round_id");
+    switch($round) {
+        case "P1":
+        case "P2":
+        case "P3":
+        case "F1":
+        case "F2":
+            return $round;
+        default:
+            return $default;
+    }
 }
 
 function ArgsLike($pfx) {
@@ -1380,6 +1457,10 @@ function ArgProjectid($default = "") {
 }
 
 function ArgPageName($default = "") {
+    return Arg("pagename", $default);
+}
+
+function ArgPhase($default = "") {
     return Arg("pagename", $default);
 }
 
