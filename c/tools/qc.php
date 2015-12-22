@@ -11,10 +11,11 @@ include_once($relPath.'site_news.inc');
 $User->MayReleaseHold("qc")
     or die("User not permitted here.");
 
-$chk_uncleared  = IsArg("chk_uncleared", true);
-$chk_pmhold     = IsArg("chk_pmhold", true);
+$chk_uncleared  = Arg("chk_uncleared", false);
+$chk_pmhold     = Arg("chk_pmhold", false);
 $release        = ArgArray("release");
 $reject         = ArgArray("release");
+$holdremark     = Arg("holdremark");
 
 if(count($release) > 0) {
     foreach($release as $key => $value) {
@@ -24,7 +25,7 @@ if(count($release) > 0) {
 
 if(count($reject) > 0) {
     foreach($reject as $key => $value) {
-        doReject($key);
+        doReject($key, $holdremark);
     }
 }
 
@@ -43,22 +44,6 @@ if(! $chk_uncleared) {
 if(! $chk_pmhold) {
     $where .="\nAND phpm.id IS NULL";
 }
-$projectids = $dpdb->SqlValues("
-SELECT DISTINCT p.projectid ,
-		phpm.id pmhold_id,
-		p.clearance
-FROM projects p
-JOIN project_holds ph
-ON p.projectid = ph.projectid
-    AND ph.hold_code = 'qc'
-    AND ph.phase = p.phase
-LEFT JOIN project_holds phpm
-ON p.projectid = phpm.projectid
-    AND phpm.hold_code = 'pm'
-    AND phpm.phase = p.phase
-WHERE p.phase = 'PREP'
-    $where
-    ORDER BY projectid");
 
 // -----------------------------------------------------------------------------
 
@@ -72,10 +57,9 @@ theme("QC Hold Release", "header");
 
 <p>To leave PREP phase and proceed to P1, an project needs to:</p>
 <ol>
-    <li>nave no holds in effect,</li>
+    <li>have no holds in effect,</li>
     <li>have pages loaded,</li>
     <li>have a Clearance Code.</li>
-
 </ol>
 
 <p>There are two Holds created for all new projects that must be cleared.
@@ -127,9 +111,9 @@ function echo_qc_waiting_projects($excl_clearance, $excl_pm) {
                 LOWER(p.username) AS pmsort,
                 phqc.id phqc_id,
                 phpm.id phpm_id,
-                DATE(FROM_UNIXTIME(phase_change_date)) AS moddate,
-                DATEDIFF(CURRENT_DATE(), FROM_UNIXTIME(phase_change_date))
-                AS days_in_phase
+                DATE(FROM_UNIXTIME(pe.event_time)) AS qcdate,
+                DATEDIFF(CURRENT_DATE(), FROM_UNIXTIME(MAX(pe.event_time)))
+                    AS days_in_qc
             FROM projects p
             JOIN project_holds phqc ON p.projectid = phqc.projectid
                 AND phqc.phase = 'PREP'
@@ -137,17 +121,14 @@ function echo_qc_waiting_projects($excl_clearance, $excl_pm) {
             LEFT JOIN project_holds phpm ON p.projectid = phpm.projectid
                 AND phpm.phase = 'PREP'
                 AND phpm.hold_code = 'pm'
+            LEFT JOIN project_events pe ON p.projectid = pe.projectid
+                AND p.phase = pe.phase
+                AND pe.event_type IN ('hold', 'set_hold', 'release_hold')
             $where
-            ORDER BY p.phase_change_date, p.projectid";
+            GROUP BY p.projectid
+            ORDER BY days_in_qc, p.projectid";
     echo html_comment($sql);
     $rows = $dpdb->SqlRows($sql);
-
-    /*
-    foreach($projectids as $projectid) {
-        $proj = new DpProject($projectid);
-        $proj->RecalcPageCounts();
-    }
-    */
 
 
 /*
@@ -162,22 +143,23 @@ function echo_qc_waiting_projects($excl_clearance, $excl_pm) {
     $tbl->AddColumn("<Genre", "genre", null);
     $tbl->AddColumn("<Language", "language");
     $tbl->AddColumn("^Proj Mgr", "pm", "epm", "sortkey=pmsort");
-    $tbl->AddColumn("^Mod Date", "moddate");
+    $tbl->AddColumn("^Mod Date", "qcdate");
     $tbl->AddColumn("<Title", "nameofwork", "etitle");
     $tbl->AddColumn("<Clearance", "clearance", "eclearance");
     $tbl->AddColumn("<PM Hold?", "phpm_id", "epmhold");
     // $tbl->AddColumn("<User<br>Hold?", "phu_id", "ehold");
     if($User->MayReleaseHold("queue")) {
         $tbl->AddColumn("^Release", "projectid", "erelease");
-        $tbl->AddColumn("^Needs Work", "projectid", "ereject");
+        $tbl->AddColumn("^Reset PM Hold", "projectid", "ereject");
     }
-    $tbl->AddColumn("^Days", "days_in_phase", "edays");
+    $tbl->AddColumn("^Days", "days_in_qc", "edays");
     $tbl->SetRows($rows);
 
     $n = count($rows);
     echo "<p class='center'>Number of projects listed: $n</p>";
 
     echo "<form id='frmprop' action='' method='POST' name='frmprop'>\n";
+    echo "<div class='rfloat'>Hold remark: <input type='text' name='txtremark' id='txtremark' size='40'></div>\n";
     $tbl->EchoTableNumbered();
     echo "</form>\n";
 }
@@ -191,9 +173,10 @@ function doRelease($projectid) {
     $p->ReleaseQCHold();
 }
 
-function doReject($projectid) {
+function doReject($projectid, $holdremark) {
     $p = new DpProject($projectid);
-    $p->SetPMHold("PREP", "release to indicate project is ready for QC");
+    $phase = $p->Phase();
+    $p->SetPMHold($phase, "Reset by QC " . $holdremark);
 }
 
 function etitle($title, $row) {
@@ -232,13 +215,13 @@ function enpages($npages) {
 }
 
 function erelease($projectid) {
-    return "<input name='release[$projectid]' type='submit' value='OK'>\n";
+    return "<input name='release[$projectid]' type='submit' title='QC OK - Release QC Hold' value='OK'>\n";
 
 }
 
 function ereject($projectid) {
     return "
-        <input name='reject[$projectid]' type='submit' value='Return'>\n";
+        <input name='reject[$projectid]' type='submit' title='Reset PM Hold due to QC issues' value='Return'>\n";
 
 }
 

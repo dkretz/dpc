@@ -61,6 +61,7 @@ $set_holds              = ArgArray("set_hold");
 $release_holds          = ArgArray("release_hold");
 $set_qc_hold            = IsArg("set_qc_hold");
 $release_qc_hold        = IsArg("release_qc_hold");
+$hold_remark            = Arg("hold_remark");
 
 $proj_link = link_to_project($projectid, "Back to project page");
 $p1_link   = link_to_round("P1", "link");
@@ -251,16 +252,18 @@ echo "
 
 
 echo "
-<div>
+<div id='test'>
     <h3>Test round advance:</h3>
     <input type='submit' name='submit_test_advance' value='Test' />
     <input type='submit' name='submit_advance' value='Advance' />
+</div>
 
+<div id='divholds' class='center w50'>
     <h3>Holds:</h3>\n";
 
     $tblholds->EchoTable();
 
-    $tbl = new DpTable("tblusrholds", "w25 lfloat dptable");
+    $tbl = new DpTable("tblusrholds", "w35 dptable");
     $tbl->SetTitle("Your User Holds");
 
     $rows = array();
@@ -279,7 +282,13 @@ echo "
     $tbl->SetRows($rows);
     $tbl->EchoTable();
 
-echo "</div>\n";
+    if($User->MayQC()) {
+        echo "<div id='divqchold'>
+        </div>   !<-- divqchold  ->\n";
+
+    }
+
+echo "</div>    <!-- divholds -->\n";
 
 echo "
 <div>
@@ -550,12 +559,12 @@ function phase_sequence($phase) {
     }
 }
 
-function link_to_round_diff($projectid, $roundid) {
-    return link_to_url(url_for_round_diff($projectid, $roundid), "Project Diff for $roundid");
+function link_to_round_diff($projectid, $phase) {
+    return link_to_url(url_for_round_diff($projectid, $phase), "Project Diff for $phase");
 }
 
-function url_for_round_diff($projectid, $roundid) {
-    return "/c/tools/projdiff.php?projectid={$projectid}&roundid={$roundid}";
+function url_for_round_diff($projectid, $phase) {
+    return "/c/tools/projdiff.php?projectid={$projectid}&phase={$phase}";
 }
 
 

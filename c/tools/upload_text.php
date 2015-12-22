@@ -22,12 +22,9 @@ error_reporting(E_ALL);
 
 $relPath="../pinc/";
 include_once($relPath.'dpinit.php');
-include_once($relPath.'theme.inc');
-include_once($relPath.'helpers.php');
 
 $projectid      = Arg('projectid', Arg('project'));
 $upload_action  = Arg('upload_action');
-//$weeks          = Arg('weeks');
 $postcomments   = Arg('postcomments');
 $submit_upload  = IsArg('submit_upload');  
 
@@ -59,47 +56,61 @@ else {
 
 if ($isuploadfile) {       // we have a file now. do some more checks.
 
-	if(right($uploadfilename, 4) != ".zip") {
-		echo _("Invalid Filename (not .zip)");
-		divert($back_url);
-	}
-	if($uploadfilesize == 0) {
-		echo _("File $uploadfilename is empty");
-		divert($back_url);
-	}
+//	if(right($uploadfilename, 4) != ".zip") {
+//		echo _("Invalid Filename (not .zip)");
+//		divert($back_url);
+//	}
+//	if($uploadfilesize == 0) {
+//		echo _("File $uploadfilename is empty");
+//		divert($back_url);
+//	}
 
 	switch($upload_action) {
         case "pp_temp":
         case "pp_complete":
-            $tofilepath = $project->PPUploadPath();
             $back_url   = url_for_my_projects();
-			$log_comment = "Uploaded file for $upload_action";
+            if(extension($uploadfilename) != "zip") {
+                echo _("Invalid Filename (not .zip)");
+                divert($back_url);
+                exit;
+            }
+            $tofilepath = $project->PPUploadPath();
+            $log_comment = "Uploaded file for $upload_action";
             break;
 
         case "ppv_complete":
-            $tofilepath = $project->PPVUploadPath();
             $back_url       = "$code_url/tools/ppv.php";
+            if(extension($uploadfilename) != "zip") {
+                echo _("Invalid Filename (not .zip)");
+                divert($back_url);
+                exit;
+            }
+            $tofilepath = $project->PPVUploadPath();
 	        $log_comment = "Uploaded file for $upload_action";
             break;
 
         case "ppv_temp":
-            $tofilepath = $project->PPVUploadPath();
             $back_url = "$code_url/tools/ppv.php";
+            if(extension($uploadfilename) != "zip") {
+                echo _("Invalid Filename (not .zip)");
+                divert($back_url);
+                exit;
+            }
+            $tofilepath = $project->PPVUploadPath();
 	        $log_comment = "Uploaded file for $upload_action";
             break;
 
         case "smooth_avail":
-            $tofilepath = $project->SmoothDownloadPath();
-            $back_url = "$code_url/project.php"
-                ."?id=$projectid";
+            $back_url = url_for_project($projectid);
+            $tofilepath = $project->SmoothDownloadPath("zip");
 	        $log_comment = "Uploaded zipped files for smooth reading";
             break;
 
         case "smooth_done":
-            $tofilepath = $project->SmoothUploadPath($username);
-            $back_url = "$code_url/project.php"
-                ."?id=$projectid";
+            $tofilepath = $project->SmoothUploadPath();
+            $back_url = url_for_project($projectid);
 	        $log_comment = "Uploaded smoothed files";
+            $project->LogSmoothDone();
             break;
 
         default:
@@ -121,55 +132,15 @@ if ($isuploadfile) {       // we have a file now. do some more checks.
         . "\n$log_comment
         $postcomments\n";
 
-//    switch($upload_action) {
-//        case "smooth_avail":
-//            if($weeks == "replace") {
-//                $project->LogProjectEvent( PJ_EVT_SMOOTH, 'text replaced' );
-//                $sql = "
-//                    UPDATE projects
-//                    SET postcomments = CONCAT(postcomments, ?)
-//                    WHERE projectid = '$projectid'";
-//            }
-//            else {
-
 	$sql = "
 			UPDATE projects
 			SET  postcomments = CONCAT(IFNULL(postcomments, ''), ?)
 			WHERE projectid = '$projectid'";
-//            }
+
 	$args = array(&$postcomments);
 	$dpdb->SqlExecutePS($sql, $args);
 
-//            if ( $weeks == "replace" ) {
-//                $project->LogProjectEvent( 'smooth-reading', 'text replaced' );
-//            }
-//            else {
-	$project->LogProjectEvent( 'smooth-reading', 'text available' );
-//            }
-//            break;
-
-//        case "smooth_done":
-//            $project->LogSmoothDone();
-//            break;
-
-//        case "ppv_temp":
-//            $msg = _("Project saved.");
-//            $project->LogProjectEvent( 'pp-verifying', 'interim file uploaded' );
-//            break;
-//
-//        case "pp_temp":
-//        case "pp_complete":
-//            $msg = _("Project saved.");
-//            $project->LogProjectEvent( 'post-proofing', 'PP file uploaded' );
-//            break;
-
-//        case "ppv_complete":
-//            $msg = _("File uploaded. Thank you!");
-//            $project->LogProjectEvent( 'pp-varifying', 'completed file uploaded' );
-//            break;
-//    }
-
-    divert($back_url, $msg, 2);
+    divert($back_url);
     exit;
 }
 
@@ -179,8 +150,8 @@ switch($upload_action) {
     case 'pp_complete':
     case 'pp_temp':
         $title = _("Upload Post-Processed Project<br/>(complete or not)");
-        $backto = "<div class='lfloat'>" 
-                    . link_to_my_projects("Back to My Projects") 
+        $backto = "<div class='lfloat'>"
+                    . link_to_my_projects("Back to My Projects")
                     . "</div>\n";
         break;
 
@@ -208,9 +179,12 @@ switch($upload_action) {
 
 theme($title, "header");
 
+$admonition = ($upload_action == "smooth_avail")
+	? "Instructions for Smooth Readers"
+	: "Annoted text or or other notes (need not be zipped.)";
 
 echo "
-<div class='w800 lfloat center'>
+<div class='w800 center'>
 {$backto}
   <h1 class='center'>$title</h1>
   <h2 class='center'>$nameofwork</h2>
@@ -218,26 +192,21 @@ echo "
       <input type='hidden' name='project' value='$projectid' />
       <input type='hidden' name='upload_action' value='$upload_action' />
       <input type='hidden' name='MAX_FILE_SIZE' value='300000000' />
-    <div class='w50'>
-      <input type='file' name='dpupload' class='center' />
+    <div class='w75'>
+    <input name='dpupload' id='dpupload' type='file' accept='zip' />
+    <input name='submit_upload' id='submit_upload' type='submit' value='Submit'/>
     </div>
-      <div class='center w50'>
-      <input name='submit_upload' id='submit_upload' type='submit' value='Upload' />
-      </div>\n";
+        " . _("
+        <p>(After you click Upload, the browser may be slow getting to the next
+        page, while it is uploading the file.)</p>") . "
+";
 
-    $caption = ($upload_action == "smooth_avail")
-                ? "Instructions for Smooth Readers"
-                : "Comments";
     echo "
+    <hr>
+    <h4>$caption</h4>
         <div>
-            <h4>" . _($caption) . "</h4>
             <textarea class='b111'  name='postcomments' cols='50' rows='16'></textarea>
         </div>
-        " . _("<p>Please make sure the file you upload is zipped (with a .zip
-        extension.)</p>
-        
-        <p>After you click Upload, the browser will be slow getting to the next
-        page, while it is uploading the file.</p>") . "
       </form>
     </div>";
 
