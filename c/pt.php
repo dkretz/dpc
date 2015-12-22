@@ -13,7 +13,6 @@ function echo_page_table( $project ) {
     $projectid = $project->ProjectId();
     $projphase = $project->Phase();
 
-
     // This project may have skipped some rounds, and/or it may have rounds
     // yet to do, so there may be some round-columns with no data in them.
     // Figure out which ones to display.
@@ -43,12 +42,13 @@ function echo_page_table( $project ) {
     $tbl->AddColumn("^Image", "imagefile", "eimage");
     $tbl->AddColumn(">OCR<br>Text", "P0", "etext", "b-right");
 
-
     $colclass = false;
 	if($projphase != "PREP") {
 		foreach(array("P1", "P2", "P3", "P4", "P5") as $phase) {
 			$colclass = ! $colclass;
-			$tbl->AddCaption($phase, 4, "ephasecaption", "center b-all");
+			// Note: for AddCaption, the third aargument, class, can bd executable.
+			// If it is, the !caption text! executes it.
+			$tbl->AddCaption(ephasecaption($phase), 4, "b-all center");
 			$tbl->AddColumn("^Diff", $phase, "ediff", "b-left");
 			$tbl->AddColumn("^Date", $phase, "edate", "em80");
 			$tbl->AddColumn("<User", $phase, "euser");
@@ -62,16 +62,16 @@ function echo_page_table( $project ) {
 	$ncol = 0;
     if($project->IsInRounds()) {
 	    $ncol++;
-        $tbl->AddColumn("^Edit", "pagename", "eedit");
+        $tbl->AddColumn("^Edit", "pagename", "eedit", "b-right");
     }
 
     if ($project->UserMayManage()) {
-        $tbl->AddColumn("^Clear", "pagename", "eclear");
+        $tbl->AddColumn("^Clear", "pagename", "eclear", "b-right");
         $ncol ++;
 
         if( ($projphase == 'PREP' || $project->IsInRounds())) {
             $ncol++;
-            $tbl->AddColumn("^Delete", "pagename", "edelete");
+            $tbl->AddColumn("^Delete", "pagename", "edelete", "b-right");
         }
     }
 	if($ncol > 0) {
@@ -109,12 +109,6 @@ function echo_page_table( $project ) {
 		$row['P3_diff'] = (rtrim($P2_text) != rtrim($P3_text));
 		$row['P4_diff'] = (rtrim($P3_text) != rtrim($P4_text));
 		$row['P5_diff'] = (rtrim($P4_text) != rtrim($P5_text));
-//		$row['PREP_length'] = mb_strlen($P0_text);
-//		$row['P1_length'] = mb_strlen($P1_text);
-//		$row['P2_length'] = mb_strlen($P2_text);
-//		$row['P3_length'] = mb_strlen($P3_text);
-//		$row['P4_length'] = mb_strlen($P4_text);
-//		$row['P5_length'] = mb_strlen($P5_text);
 	}
     $tbl->SetRows($rows);
     $tbl->EchoTable();
@@ -203,12 +197,9 @@ function ediff($phase, $row) {
 	}
 	$projectid = $row['projectid'];
 	$pagename = $row['pagename'];
-//	$version  = $row[$phase.'_version'];
 	return $row[$phase.'_diff']
 		? link_to_diff($projectid, $pagename, $phase2, "Diff", "1", true)
 			: "";
-//    $diff = $row[rounddifffield($roundid)];
-//    return $diff ? link_to_diff($projectid, $pagename, $roundid, true) : "";
 }
 function edate($phase, $row) {
 	if($row[$phase.'_state'] == 'A') {
@@ -216,18 +207,6 @@ function edate($phase, $row) {
 	}
 	return $row[$phase.'_time'];
 }
-//function rounduserfield($roundid) {
-//    return "{$roundid}_user";
-//}
-//function roundprivacyfield($roundid) {
-//    return "{$roundid}_privacy";
-//}
-//function roundtimefield($roundid) {
-//    return "{$roundid}_time";
-//}
-//function rounddifffield($roundid) {
-//    return "{$roundid}_diff";
-//}
 
 function color_class($roundid, $phase, $state) {
     if($phase != $roundid) {
@@ -240,8 +219,6 @@ function color_class($roundid, $phase, $state) {
 }
 
 function euser($phase, $row) {
-//    if(! $row[rounduserfield($roundid)])
-//        return "";
     global $User;
 //
 	if($row[$phase.'_state'] == 'A') {
@@ -254,10 +231,6 @@ function euser($phase, $row) {
 	$projphase = $row['project_phase'];
 	$privacy = $row[$phase . "_privacy"];
     $state = $row[$phase . "_state"];
-//    $ufield = rounduserfield($roundid);
-//    $proofer = $row[$ufield];
-//    $pfield = roundprivacyfield($roundid);
-//    $privacy = $row[$pfield];
     $username = $User->Username();
 
 	switch($projphase) {
@@ -285,19 +258,7 @@ function euser($phase, $row) {
     return "<div class='$class'>$phase_user</div>";
 }
 
-//function row_text($row) {
-//	$projectid = $row['projectid'];
-//	$pagename = $row['pagename'];
-//	$version = $row[$row['roundid_'].'_version'];
-//	return PageVersionText($projectid, $pagename, $version);
-//}
-
 function etext($phase, $row) {
-//	$vfield = $roundid . "_version";
-//    if(! isset($row[$vfield])) {
-//	    return "";
-//    }
-//	$version = $row[$vfield];
 	if($row[$phase.'_state'] == 'A') {
 		return "";
 	}
@@ -318,8 +279,6 @@ function eclear($pagename) {
 function eedit($pagename, $row) {
     global $User;
     $projectid = $row['projectid'];
-//    $phase = $row["phase"];
-//    $usrname = $row[rounduserfield($phase)];
 	$proofer = $row['proofer'];
     if(lower($proofer) == lower($User->Username())
             || lower($row['pm']) == lower($User->Username()) || $User->IsSiteManager()) {
