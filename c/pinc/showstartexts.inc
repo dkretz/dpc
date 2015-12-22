@@ -8,12 +8,12 @@ function showstartexts($limit, $metal) {
 
     if($metal == "Bronze") {
         $desc = _("$nmetal Now Proofreading.");
-        $text = _("These books are currently being processed through our site;
-        sign in and start helping!!!!"); }
+        $text = _("These books are currently being proofed and formatted by our volunteers.
+        Sign up, log in, and start helping!!!!"); }
     else if($metal == "Silver") {
         $desc = _("$nmetal In Progress.");
-        $text = _("These books have been processed through our site but have
-        not yet posted (currently going through their final proofreading and
+        $text = _("These books have been proofed and for through our site but have
+        not yet posted - currently going through final proofreading and
         assembly.");
     }
     else {
