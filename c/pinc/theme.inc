@@ -178,15 +178,17 @@ echo "
 }
 
 function html_logobar() {
+    global $Context;
     global $code_url;
-    global $dpdb;
+//    global $dpdb;
     global $User;
     global $completed_books_offset;
 
 //    $username = $User->Username();
-    $numproj = $dpdb->SqlOneValue("
-        SELECT COUNT(distinct postednum) FROM projects
-        WHERE phase = 'POSTED'");
+//    $numproj = $dpdb->SqlOneValue("
+//        SELECT COUNT(distinct postednum) FROM projects
+//        WHERE phase = 'POSTED'");
+    $numproj = $Context->PostedCount();
 
     echo "
 	<table id='tbl_logobar' class='w100'>
@@ -231,7 +233,6 @@ function html_logobar() {
 	    echo implode($divider, $items);
         echo "
        <td class='right'>ID:
-            <input type='hidden' name='destination' id='destionation' value='".ThisFullUrl()."'>
             <input type='text' name='userNM' size='10' tabindex='1' maxlength='50'> &nbsp;" . _("Password:") . "
             <input type='password' name='userPW' size='10' tabindex='2'
             maxlength='50'> &nbsp;
@@ -384,7 +385,6 @@ function maybe_show_language_selector() {
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-// This parallels the Activity Hub.
 function show_quick_links() {
     global $User;
 
@@ -397,14 +397,9 @@ function show_quick_links() {
         $items[] = link_to_project_manager("PM");
     }
 
-//	foreach(array("P1", "P2", "P3", "F1", "F2", "PP", "PPV") as $phs) {
 	foreach(array("P1", "P2", "P3", "F1", "F2") as $phs) {
         if($User->MayWorkInRound($phs)) {
 	        $items[] = link_to_round($phs);
-//	        $title = PhaseCaption($phs);
-//	        $link = link_to_round($phs);
-//	        echo headerbar_text("<span title='$title'>$text</span>", "$code_url/$rel_url", $divider);
-//            $links[] = array(link_to_round($phs), $phs, $phs);
         }
     }
 	if($User->MayWorkInRound("PP")) {
@@ -417,17 +412,6 @@ function show_quick_links() {
 
 	$divider        = "\n · ";
 	echo implode($divider, $items);
-
-//    if ( count($links) > 0 ) {
-//        while ( list($i, list($rel_url, $text, $title)) = each($links) ) {
-//            $divider = ($i > 0)
-//                    ? true
-//                    : false;
-//
-//                echo headerbar_text("<span title='$title'>$text</span>", "$code_url/$rel_url", $divider);
-//            echo "\n";
-//        }
-//    }
 }
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -445,8 +429,7 @@ function show_round_specific_stats( $round_id ) {
 
     echo "
         <h5 class='center'>" . _("Pages completed in $round_id") . "</h5>
-        <h5 class='center'>" . _("Site Statistics:") . "</h5>
-        <pre>\n";
+        <h5 class='center'>" . _("Site Statistics:") . "</h5>\n";
 
     $todaygoal      = number_format(PhaseGoalToday($round_id));
     $yesterdaygoal  = number_format(PhaseGoalYesterday($round_id));
@@ -463,16 +446,17 @@ function show_round_specific_stats( $round_id ) {
     $strpct         = number_format($monthpct, 1);
 
     // Today's Numbers
-    echo _("Today's Goal: $todaygoal\n")
-       . _("Today's Total: $todaycount ($strnow)\n\n")
+    echo "<ul class='clean'>\n";
+    echo _("<li>Today's Goal: $todaygoal</li>\n")
+       . _("<li>Today's Total: $todaycount ($strnow)</li>\n\n")
 
-       . _("Yesterday's Goal: $yesterdaygoal\n")
-       . _("Yesterday's Total: $yesterdaycount\n\n")
+       . _("<li>Yesterday's Goal: $yesterdaygoal</li>\n")
+       . _("<li>Yesterday's Total: $yesterdaycount</li>\n\n")
 
-       . _("$strmonthgoal: $monthgoal\n")
-       . _("$strmonthcount: $monthcount ({$strpct}%)\n")
+       . _("<li>$strmonthgoal: $monthgoal</li>\n")
+       . _("<li>$strmonthcount: $monthcount ({$strpct}%)</li>\n")
 
-       . "</pre>\n";
+       . "</ul>\n";
 
     /*
     // Number of users
@@ -577,44 +561,23 @@ function ename($name) {
 
 function show_user_teams()
 {
-    global $code_url;
-    global $dpdb;
     global $User;
 
-    $username = $User->Username();
-    $sql = "
-        SELECT u.username,
-               ut1.id id1,
-               ut1.teamname team1,
-               ut2.id id2,
-               ut2.teamname team2,
-               ut3.id id3,
-               ut3.teamname team3
-        FROM users u
-        LEFT JOIN user_teams ut1 ON u.team_1 = ut1.id
-        LEFT JOIN user_teams ut2 ON u.team_2 = ut2.id
-        LEFT JOIN user_teams ut3 ON u.team_3 = ut3.id
-        WHERE u.username = ?";
-    $args = array(&$username);
-    $row = $dpdb->SqlOneRowPS($sql, $args);
+    echo "<div id='divteams' class='sidebar margined padded'>
+          <h5>" . _("Your Teams") ."</h5>
+        <ul class='clean'>\n";
 
-    echo "
-    <div id='divteams' class='center sidebar'>
-    <h5>" .  _("Your Teams:") . "</h5>\n";
+    foreach($User->Teams() as $team) {
+        /** @var DpTeam $team */
+        echo "<li>" . link_to_team($team->Id(), $team->TeamName(), true) . "</li>\n";
+    }
 
-    if($row['id1'] != 0)
-        echo link_to_team($row['id1'], $row['team1'], true) . "<br>";
+    echo "</ul>
+    <div>\n";
 
-    if($row['id2'] != 0)
-        echo link_to_team($row['id2'], $row['team2'], true) . "<br>";
-
-    if($row['id3'] != 0)
-        echo link_to_team($row['id3'], $row['team3'], true) . "<br>";
-
-    echo "
-    <br/>
-    <a href='$code_url/stats/teams/teamlist.php'>"._("View all teams")."</a>
-    </div>\n";
+    echo "<div class='center'>
+    " . link_to_team_list("View all teams", true)
+    . "</div>\n";
 }
 
 // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
