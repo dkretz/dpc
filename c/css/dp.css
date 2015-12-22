@@ -11,6 +11,7 @@ a { text-decoration: none; }
 a:link { color: #0000ff; }
 a:visited { color: #990099; }
 a:active { color: #ff0000; }
+a.red { color: red}
 
 div#home_main {
     padding: 0 3%;
@@ -20,19 +21,22 @@ input[type=button],
 input[type=submit],
 table.sortable th { cursor: pointer; } 
 
-body { margin: 0; }
+body { margin: 0;
+}
+
 
 pre { font: inherit; }
 
 table.dptable.logobar,
+div#logobox,
 div#logobar {
     background-color: #e7efde;
 }
 
-table.dptable tr.colhead {
+table.dptable tr.colheadings {
     background-color: lightgreen;
 }
-table.dptable.no_tr_for_th tr.colhead {
+table.dptable.no_tr_for_th tr.colheadings {
     display: none;
 }
 
@@ -49,11 +53,21 @@ table.dptable td div {
 }
 
 table.dptable.minitab {
+    background-color: #e7efde;
 }
 
 table.dptable.minitab th ,
 table.dptable.minitab td {
     padding: .3em 2em .3em 3em ;
+}
+
+table.dptable.minitab tr th {
+    background-color: darkgreen;
+    color: white;
+}
+
+table.dptable.minitab td:first-of-type {
+    background-color: lightgreen;
 }
 
 div#logobar div.left {
@@ -599,6 +613,7 @@ table.dptable {
     border-collapse: collapse;
     margin: .5em auto;
     background-color: #e7efde;
+    border: 1px solid black;   /* No effect on cells */
 }
 
 table.dptable th,
@@ -609,7 +624,13 @@ table.dptable td {
     overflow: hidden;
 }
 
-table.dptable td.noborder {
+table.dptable.form th,
+table.dptable.form td {
+    border: none;
+}
+
+
+table.noborder td, table.noborder th {
     border-width: 0;
 }
 
@@ -625,7 +646,6 @@ input {
     font-size: 1em;
 }
 table.dptable input[type=submit] {
-    min-width: 90%;
     height: 1.9em;
 }
 
@@ -961,7 +981,7 @@ table#tblnav * {
 }
 
 table#tblnav input {
-    font-size: 80%;
+    font-size: 70%;
     color: black;
 }
 
@@ -972,10 +992,6 @@ table#tblnav {
     font-family: verdana, helvetica, sans-serif;
     font-weight: normal;
     font-size: 14px;
-}
-
-table#tblpages {
-    margin: auto;
 }
 
 table#tblpages input {
@@ -1247,7 +1263,7 @@ div.logobar {
     font-size: .8em;
     width: 100%;
     color: white;
-    background-color: #336633;
+    bacground-color: darkgreen;
     text-align: center;
     padding: 3px 0;
 }
@@ -1293,7 +1309,7 @@ div#div_upload {
     color: #DDDDDD;
 }
 
-.div_project_info {
+#divproject div.status_box {
     background-color: #F0F0F0;
     width: 95%;
     border: 1px solid #808080;
@@ -1318,7 +1334,7 @@ div#div_upload {
 }
 
 #project_info_table td {
-    border: .5px solid #cccccc;
+    border: 1px solid #cccccc;
     text-align: left;
     padding-left: 1em;
 }
@@ -1745,11 +1761,12 @@ ul.bare li {
 ul.clean,
 ul.clean ul {
     list-style: none;
-    padding: 0;
+    padding: auto;
     margin: 0;
 }
-ul.clean li {
-    padding: 0;
+
+ul.center li {
+    text-align: left;
 }
 
 table.mini td {
@@ -2190,3 +2207,53 @@ table.tbl-page-log  th:nth-child(1) { width: 10%; }
 table.tbl-page-log  th:nth-child(2) { width: 10%; }
 table.tbl-page-log  th:nth-child(3) { width: 10%; }
 table.tbl-page-log  th:nth-child(4) { width: 35%; }
+
+div#logobox {
+    width: 100%;
+    height: 75px;
+    font-family: verdana, helvetica, sans-serif;
+    font-weight: bold;
+}
+
+div#logobox div#logoleft, div#logobox div#logoright {
+    width: 50%;
+    float: left;
+    height: 75px;
+    margin: auto;
+    overflow: hidden;
+}
+
+div#navbox {
+    width: 100%;
+    color: white;
+    background-color: red;
+    text-decoration: inherit;
+    font-family: verdana, helvetica, sans-serif;
+    font-size: 14px;
+    padding-left: 0.8em;
+    padding-right: 0.8em;
+}
+
+div#navbox a.nav {
+    color: white;
+}
+
+div#navbox input {
+    font-size: 70%;
+}
+
+/* project page */
+
+div#divupload input {
+    width: 10em;
+    margin: .3em;
+}
+
+table.dptablette {
+    background-color: #e7efde;
+}
+
+table.dptable tr.table_title {
+    background-color: lightgreen;
+}
+
