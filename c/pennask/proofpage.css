@@ -12,6 +12,7 @@ i {
 sc {
     font-variant: small-caps;
     color: red;
+    font-size: 120%;
 }
 
 g {
@@ -54,7 +55,7 @@ div#divleft {
     top: 0;
     overflow: hidden;
     height: 100%;
-    visibility: hidden;
+    /* visibility: hidden; */
 }
 
 div#divright {
@@ -70,7 +71,7 @@ div#divleft {
     z-index: 2;
     top: 0;
     left: 0;
-    visibility: hidden;
+    /* visibility: hidden; */
 }
 
 div#divcontrols {
@@ -81,7 +82,7 @@ div#divcontrols {
     background-color: #EEDFCC;
     padding: 0 .25em;
     font-size: 14px;
-    visibility: hidden;
+    /* visibility: hidden; */
 }
 
 div#divcontrols div#divcharpicker {
@@ -228,7 +229,7 @@ table.tblpicker th {
         text-align: left;
         overflow: hidden;
         border: 2px solid gray;
-        visibility: hidden;
+        /* visibility: hidden; */
     }
 
     div#ctlpanel * {
