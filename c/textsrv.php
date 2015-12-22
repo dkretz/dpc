@@ -2,38 +2,32 @@
 $relPath = "./pinc/";
 require_once "pinc/dpinit.php";
 
+$User->IsLoggedIn()
+    or redirect_to_home();
+
 $projectid = ArgProjectid();
 $pagename  = ArgPageName();
-$roundid   = Arg("roundid");
 $phase     = Arg("phase");
 $version   = Arg("version");
 
-$pg = new DpPage($projectid, $pagename);
-
-if(isset($version)) {
-	$text = $pg->VersionText( $version );
+if($pagename == "") {
+    $project = new DpProject($projectid);
+    $text = ($phase == "all")
+        ? $project->ActiveText()
+        : $project->RoundText($phase);
 }
-
-else if($roundid) {
-		$version = $pg->RoundVersion($roundid);
-		$text = $version->VersionText();
+else {
+    $page = new DpPage($projectid, $pagename);
+    $text = ($phase != "")
+        ? $text = $page->PhaseText($phase)
+        : ($version == "")
+            ? $page->ActiveText()
+            : $page->VersionText($version);
 }
-
-else if($phase) {
-	$version = $pg->PhaseVersion($phase);
-	$text = $version->VersionText();
-	die("No round or version provided");
-}
-
-
-//}
-//else {
-//	$text = $pg->PhaseText($pg->Phase());
-//}
 
 echo
 "<!DOCTYPE html>
-<html lang=lenl>
+<html lang='en'>
 <head>
 <meta charset='utf-8'>
 <title>$projectid Page $pagename</title>
