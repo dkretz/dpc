@@ -16,7 +16,6 @@ $qgenre         = ArgArray("qgenre");
 $qphase         = ArgArray("qphase");
 $qstatus        = Arg("qstatus", "both");
 $orderby        = Arg("orderby", "nameofwork");
-$desc           = ArgBoolean("desc", "1");
 
 $pagenum        = Arg("pagenum", "1");
 $rowsperpage    = Arg("rowsperpage", "100");
@@ -57,13 +56,13 @@ if($dosearch || $cmdPgUp || $cmdPgDn) {
 	$awhere = array("p.phase != 'DELETED'");
 
 	if($qtitle) {
-		$qqtitle    = mysql_real_escape_string($qtitle);
+		$qqtitle    = $dpdb->EscapeString($qtitle);
 		$qsql = "(p.nameofwork LIKE '%$qqtitle%')";
 		$awhere []  = $qsql;
 	}
 
 	if($qauthor) {
-		$qqauthor   = mysql_real_escape_string($qauthor);
+		$qqauthor   = $dpdb->EscapeString($qauthor);
 		$qsql = "(p.authorsname LIKE '%$qqauthor%')";
 		$awhere []  = $qsql;
 	}
@@ -162,7 +161,7 @@ if($dosearch || $cmdPgUp || $cmdPgDn) {
 	//    }
 
 	$where = implode("\nAND ", $awhere);
-	$sql = project_search_view_sql($where, $orderby, $desc);
+	$sql = project_search_view_sql($where, $orderby);
 
 	$rows = $dpdb->SqlRows($sql);
 	if($cmdPgUp) {
@@ -211,7 +210,6 @@ echo "
     <input type='hidden' name='rowsperpage' value='$rowsperpage'>
     <input type='hidden' name='pagenum' value='$pagenum'>
     <input type='hidden' name='orderby' id='orderby' value='nameofwork'>
-    <input type='hidden' name='desc' id='desc' value='0'>
     <div id='searchtable' class='left w95'>
 	    <div id='divsubmit' class='lfloat w35'>
 			<div>
