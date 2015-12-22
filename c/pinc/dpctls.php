@@ -50,7 +50,7 @@ function WordlistPicker($name="pkwordlist",
                         $class = "",
                         $onchange="") {
     $args = array( "flagged"    => _("Wordcheck words to flag"),
-//                   "suggested"  => _("Wordcheck suggested words"),
+                   "suggested"  => _("Wordcheck suggested words"),
                    "good"       => _("Project good word list"),
                    "bad"        => _("Project bad word list"),
                    "allalpha"   => _("Project words (alphabetic)"),
