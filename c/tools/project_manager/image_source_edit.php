@@ -146,9 +146,9 @@ function ApplyCreate($code_name, $display_name, $full_name, $url, $credit, $publ
         return false;
     }
     $sql = "INSERT INTO image_sources
-                  (code_name, display_name, full_name, url, credit, public_comment, internal_comment)
+                  (code_name, display_name, full_name, url, credit, public_comment, internal_comment, is_active)
                 VALUES
-                  (?, ?, ?, ?, ?, ?, ?)";
+                  (?, ?, ?, ?, ?, ?, ?, 1)";
     $args = array(&$code_name, &$display_name, &$full_name, &$url, &$credit, &$public_comment, &$internal_comment);
     return $dpdb->SqlExecutePS($sql, $args);
 }
