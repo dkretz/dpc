@@ -32,11 +32,12 @@ class DpProject
 //    protected $_pages;
     protected $_page_objects;
     protected $_error_message = "";
-    protected $_page_char_offset_array = array();
+//    protected $_page_char_offset_array = array();
     protected $_page_byte_offset_array = array();
     protected $_enchanted_words = array();
     // phases are PREP, P1, P2, P3, F1, F2, PP, PPV, POSTED
     // now correlates with "rounds" table hence RoundIdForIndex etc.
+    // soon to be determined by project_sequence taeble
     protected $_phase;
 
     public function __construct($projectid = null) {
@@ -109,24 +110,26 @@ class DpProject
 
 	/* rewrite */
     public function init_text() {
-        global $dpdb;
+//        global $dpdb;
         $projectid = $this->ProjectId();
 
-        $sql = "
-            SELECT pagename, version
-            FROM page_last_versions pv
-            WHERE projectid = ?
-            order by pagename";
-	    $args = array(&$projectid);
+//        $sql = "
+//            SELECT pagename, version
+//            FROM page_last_versions pv
+//            WHERE projectid = ?
+//            order by pagename";
+//	    $args = array(&$projectid);
+//        $rows = $dpdb->SqlRowsPS($sql, $args);
 
-        $rows = $dpdb->SqlRowsPS($sql, $args);
+        $rows = $this->PageRows();
+        $b_offset = 0;
         foreach($rows as $row) {
             $pagename = $row['pagename'];
-	        $version = $row['version'];
-	        $text = PageVersionText($projectid, $pagename, $version);
-            $this->_text .= ("\n" . $text);
-            $this->_page_char_offset_array[$pagename] = mb_strlen($text);
-            $this->_page_byte_offset_array[$pagename] = strlen($text);
+            $this->_page_byte_offset_array[$pagename] = $b_offset;
+            $version = $row['version'];
+            $text = PageVersionText($projectid, $pagename, $version);
+            $this->_text .= ($text . "\n");
+            $b_offset = strlen($this->_text);
         }
     }
 
@@ -150,10 +153,10 @@ class DpProject
 	public function VersionState() {
 		return  $this->_row['version_state'];
 	}
-	public function LastProofTime() {
-		return  $this->_row['last_proof_time'];
-	}
-    public function LatestProofTime() {
+//	public function LastProofTime() {
+//		return  $this->_row['last_proof_time'];
+//	}
+    public function CurrentVersionTime() {
 	    return $this->_row['last_proof_time'];
     }
 
@@ -1070,6 +1073,7 @@ class DpProject
             case "POSTED":
                 $phase = "F2";
                 break;
+
             default:
                 break;
         }
@@ -1097,7 +1101,7 @@ class DpProject
                     AND pv.pagename = pv2.pagename
 			    WHERE pv.projectid = ?
 			    	AND pv.phase = ?
-			    	AND pv.task IN ('PROOF', 'FORMAT')
+			    	AND pv.task IN ('PROOF', 'FORMAT', 'LOAD')
 		        ORDER BY pv.pagename";
         $args = array(&$projectid, &$phase);
 		$pgs = $dpdb->SqlRowsPS($sql, $args);
@@ -1218,7 +1222,6 @@ class DpProject
     /*
      * only used in cleanup.php and guiprep.php
      */
-    /*
     public function PageObjects() {
         global $dpdb;
 
@@ -1248,7 +1251,6 @@ class DpProject
         }
         return $this->_pages;
     }
-    */
 
     public function ImagePaths() {
         global $dpdb;
@@ -1313,6 +1315,27 @@ class DpProject
     public function RoundText($phase) {
 	    global $dpdb;
 	    $projectid = $this->ProjectId();
+        switch($phase) {
+            case "PREP":
+            case "P1":
+            case "P2":
+            case "P3":
+            case "F1":
+            case "F2":
+                break;
+
+            case "OCR":
+                $phase = "PREP";
+                break;
+
+            case "PP":
+            case "PPV":
+            case "POSTED":
+                $phase = "F2";
+                break;
+            default:
+                return "";
+        }
 	    $sql = "SELECT pv.pagename,
 						IFNULL(pv.version, plv.version) version
 	            FROM page_versions pv
@@ -1435,10 +1458,10 @@ class DpProject
     public function IsPage($pagename) {
         global $dpdb;
         $projectid = $this->ProjectId();
-        return $dpdb->SqlExists("
-            SELECT 1 FROM pages
+        return $dpdb->SqlOneValue("
+            SELECT COUNT(1) FROM pages
             WHERE projectid = '$projectid'
-            AND pagename = '$pagename'");
+            AND pagename = '$pagename'") > 0;
     }
 
     public function Page($pagename) {
@@ -1979,10 +2002,10 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
 		$username = $User->Username();
 		$projectid = $this->ProjectId();
 
-		return $dpdb->SqlExists("
-			SELECT 1 FROM notify
+		return $dpdb->SqlOneValue("
+			SELECT COUNT(1) FROM notify
              WHERE projectid = '$projectid'
-                   AND username = '$username'");
+                   AND username = '$username'") > 0;
 	}
 
     public function UserCheckedOutPageCount() {
@@ -2608,10 +2631,10 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
 	public function IsQCHold() {
 		global $dpdb;
 		$projectid = $this->ProjectId();
-		return $dpdb->SqlExists("
-			SELECT 1 FROM project_holds
+		return $dpdb->SqlOneValue("
+			SELECT COUNT(1) FROM project_holds
 			WHERE projectid = '$projectid'
-				AND hold_code = 'qc'");
+				AND hold_code = 'qc'") > 0;
 	}
 
     public function QCHoldId() {
@@ -2644,11 +2667,11 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
         $projectid = $this->ProjectId();
 
         $sql = "
-            SELECT 1 FROM project_holds
+            SELECT COUNT(1) FROM project_holds
             WHERE projectid = '$projectid'
                 AND phase = '$phase'
                 AND hold_code = '$holdcode'";
-        $x = $dpdb->SqlExists($sql);
+        $x = $dpdb->SqlOneValue($sql) > 0;
         return $x;
     }
 
@@ -2657,12 +2680,12 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
         $projectid = $this->ProjectId();
 
         $sql = "
-            SELECT 1 FROM project_holds
+            SELECT COUNT(1) FROM project_holds
             WHERE projectid = '$projectid'
                 AND phase = '$phase'
                 AND hold_code = 'user'
                 AND set_by = '$username'";
-        $x = $dpdb->SqlExists($sql);
+        $x = $dpdb->SqlOneValue($sql) > 0;
         return $x;
     }
     public function SetUserHold($phase, $note = "") {
@@ -2717,11 +2740,11 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
         $projectid = $this->ProjectId();
         $username  = $User->Username();
         // return $dpdb->SqlExecute("
-        if(! $dpdb->SqlExists("
-            SELECT 1 FROM project_holds
+        if($dpdb->SqlOneValue("
+            SELECT COUNT(1) FROM project_holds
             WHERE projectid = '{$this->ProjectId()}'
                 AND hold_code = '$holdcode'
-                AND phase = '$phase'")) {
+                AND phase = '$phase'") == 0) {
             $sql = "
                 INSERT INTO project_holds
                 SET hold_code = '$holdcode',
@@ -2958,15 +2981,7 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
     }
 //
 	public function PageByteOffsetArray() {
-		$ary = array();
-		if(! $ary) {
-			$netos = 0;
-			foreach ( $this->_page_byte_offset_array as $pg => $os ) {
-				$netos += $os;
-				$ary[] = array( "page" => $pg, "offset" => $netos );
-			}
-		}
-		return $ary;
+        return $this->_page_byte_offset_array;
 	}
 
     public function PageNameForByteOffset($offset) {
@@ -2977,13 +2992,14 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
             return "";
         }
 
-        foreach($a as $pg) {
-            $pgoffset = $pg["offset"];
+        $ret = null;
+        foreach($a as $pg => $pgoffset) {
             if($offset < $pgoffset) {
-                return $pg["page"];
+                break;
             }
+            $ret = $pg;
         }
-        return null;
+        return $ret;
     }
 
     public function ByteOffsetForPageName($pagename) {
@@ -3002,31 +3018,31 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
      * locate the page and line # on page and return 5 adjacent lines
      */
     public function ContextForByteOffset($word, $offset) {
-	    dump($word . $offset);
         $pg = $this->PageForByteOffset($offset);
 	    if(! $pg) {
 		    assert(false);
 		    dump($this->ProjectId());
 		    dump(" |$word|$offset");
+            exit();
 	    }
         $pagename = $pg->PageName();
-	    dump($pagename);
         $pgtext = $pg->ActiveText();
         $pgoffset = $this->ByteOffsetForPageName($pagename);
         $pglines = text_lines($pgtext);
         $pgposn = $offset - $pgoffset;
-        $lineindex = RegexCount("\n", "u", bleft($pgtext, $pgposn));
-	    dump("$pgoffset  $pgposn  $lineindex");
+        $lineindex = RegexCount("\n", "u", bleft($pgtext, $pgposn)) + 1;
 
         $ary = array();
         $ary['offset'] = $offset;
+        $ary['pgoffset'] = $pgoffset;
+        $ary['pgposn'] = $pgposn;
         $ary['word'] = $word;
         $ary['imageurl'] = $pg->ImageUrl();
         $ary['pagename'] = $pagename;
-        $ary['lineindex'] = $lineindex + 1;
+        $ary['lineindex'] = $lineindex;
         $ary['linecount'] = count($pglines);
         // back up 2 lines to first
-        $lstart = max(0, $lineindex - 2);
+        $lstart = max(0, $lineindex - 3);
         $ary['lstart'] = $lstart;
         $context = implode("\n", array_slice($pglines, $lstart, 5));
         $context = ReplaceRegex("(?<!\p{L})".$word."(?!\p{L})",
@@ -3311,11 +3327,11 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
 
     public function IsPPHold() {
         global $dpdb;
-        return $dpdb->SqlExists("
-            SELECT 1 FROM project_holds
+        return $dpdb->SqlOneValue("
+            SELECT COUNT(1) FROM project_holds
             WHERE projectid = '{$this->ProjectId()}'
                 AND hold_code = 'pp'
-                AND phase = 'PP'");
+                AND phase = 'PP'") > 0;
     }
 
     private function SetPPHold($note = "") {
@@ -3366,6 +3382,36 @@ Please review the [url={$url}]project comments[/url] before posting, as well as 
         $this->LogProjectEvent(PJ_EVT_RELEASE,
                 "release {$hold->hold_code} Hold");
         $this->MaybeAdvanceRound();
+    }
+
+    public function ExtraFilePaths() {
+        global $dpdb;
+        $projectid = $this->ProjectId();
+        $path = build_path($this->ProjectPath(), "*");
+        $filepaths = glob($path);
+
+        $images = $dpdb->SqlValues("
+            SELECT imagefile FROM pages
+            WHERE projectid = '$projectid'
+            ORDER BY pagename");
+
+        $notfiles = array();
+        $extrapaths = array();
+        foreach($images as $img) {
+            $notfiles[] = basename($img);
+        }
+        $notfiles[] = "wordcheck";
+        $notfiles[] = "text";
+
+        foreach ($filepaths as $filepath) {
+            $filename = basename($filepath);
+            if ( !in_array( $filename, $notfiles ) ) {
+                if(extension($filename) != "zip") {
+                    $extrapaths[] = $filepath;
+                }
+            }
+        }
+        return $extrapaths;
     }
 
     public function SendImageZipFile() {
