@@ -5,13 +5,6 @@ global $phpbb_root_path;
 
 if(!isset($relPath)) $relPath = "./";
 include_once $relPath . "site_vars.php";
-/*
-    This is to used for identifying a phpbb user. It tries
-    to match an existing cookie session so no username is
-    required. Failing that, try login.
-
-    http://wiki.phpbb.com/Authentication_plugins#login_method
-*/
 
 if(!defined('IN_PHPBB')) {
 	define('IN_PHPBB', true);
@@ -24,9 +17,14 @@ global $phpbb_root_path;
 require_once $phpbb_root_path . "common.php";
 $request->enable_super_globals();
 require_once $phpbb_root_path . "includes/functions_posting.php";
-// $user in phpbb extends session
+
+// phpbb functions to establish a session and identify the session user
 $user->session_begin();
 $auth->acl($user->data);
+
+/*
+ *   phpbb provides us with the $user object and, when it performs a login for us, $_user_row and $_username
+ */
 
 class DpPhpbb3
 {
@@ -66,6 +64,9 @@ class DpPhpbb3
         return $this->_username != "" && strtolower($this->_username) != "anonymous";
     }
 
+    // Called from DpThisUser if supplied with username and password.
+    // Login succeeds if $_user_row is populated and $_username is populated.
+    // Redundant since $_username = $_user_row['username'] (but should be 'username_clean'?)
     public function DoLogin($username, $password) {
         global $auth;
         $autologin = false;
@@ -78,29 +79,13 @@ class DpPhpbb3
         }
         $this->_user_row = $login['user_row'];
         $this->_username = $login['user_row']['username'];
-        if(empty($this->_username) 
-                || strtolower($this->_username) == 'anonymous') {
+        if(empty($this->_username) || strtolower($this->_username) == 'anonymous') {
             $this->_user_row = null;
             $this->_username = null;
             return false;
         }
         return true;
     }
-
-//    public function UserId() {
-//        return empty($this->_user_row) || empty($this->_user_row['user_id'])
-//            ? null
-//            : $this->_user_row['user_id'];
-//    }
-
-//    public function LoginAttempts() {
-//        global $user;
-//        return $user['user_login_attempts'];
-//    }
-
-//    public function bb_user() {
-//        return $this->_user_row;
-//    }
 
     public function Email() {
         return empty($this->_user_row)
